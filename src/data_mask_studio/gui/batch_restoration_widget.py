@@ -53,6 +53,8 @@ from data_mask_studio.gui.components.presentation import (
 from data_mask_studio.gui.visual_tokens import COLORS, METRICS
 from data_mask_studio.gui.dialog_localization import localize_standard_buttons
 from data_mask_studio.i18n import Translator
+from data_mask_studio.gui.xlsx_import import prepare_tabular_paths
+from data_mask_studio.xlsx_import import WorkbookImportError
 from data_mask_studio.restoration import RepresentationPolicy
 from data_mask_studio.vault import VaultRepository
 
@@ -241,6 +243,7 @@ class BatchRestorationWidget(QWidget):
             f"color: {COLORS['muted_text']}; font-size: {METRICS['description_font_size']}px;"
         )
         self.missing_policy_combo.currentIndexChanged.connect(self._update_options_summary)
+        self.missing_policy_combo.currentIndexChanged.connect(self._update_actions)
         self.representation_combo.currentIndexChanged.connect(self._update_options_summary)
         set_button_role(self.options_toggle, "secondary")
 
@@ -417,6 +420,11 @@ class BatchRestorationWidget(QWidget):
         self.summary_output.clear()
 
     def _result_text(self, item: BatchRestorationFile) -> str:
+        if item.narrative_error_id:
+            return self._translator.text(item.narrative_error_id) + ("\n" + "\n".join(item.narrative_error_codes) if item.narrative_error_codes else "")
+        if item.narrative_result is not None:
+            from data_mask_studio.gui.narrative_restoration_widget import result_text
+            return result_text(item.narrative_result, self._translator)
         explanation = item.result_explanation
         if explanation is not None:
             presentation = (_RESULT_REASONS.get(explanation.reason)
@@ -521,6 +529,13 @@ class BatchRestorationWidget(QWidget):
             missing=self.missing_policy_combo.currentText(), representation=self.representation_combo.currentText()))
 
     def add_paths(self, paths: Iterable[str | Path]) -> int:
+        if self._analysis_worker is not None or self._processing_worker is not None:
+            return 0
+        try:
+            paths = prepare_tabular_paths(paths, self, self._translator)
+        except WorkbookImportError as error:
+            self._set_status(self._translator.text(error.message_id), True)
+            return 0
         added = add_files(self.files, paths)
         if added:
             self._refresh_file_table()
@@ -544,6 +559,7 @@ class BatchRestorationWidget(QWidget):
             return
         try:
             found = discover_files(directory)
+            found.extend(sorted(Path(directory).glob("*.xlsx")))
         except BatchRestorationError as error:
             self._set_status(str(error), True)
             return
@@ -924,8 +940,11 @@ class BatchRestorationWidget(QWidget):
         return (
             bool(eligible)
             and bool(self.output_field.text().strip())
+            and (self.missing_policy_combo.currentData() == BatchMissingCodePolicy.ABORT_FILE.value
+                 or all(item.missing_codes == 0 for item in eligible
+                        if item.file_type not in {BatchRestorationFileType.CSV, BatchRestorationFileType.HTML}))
             and all(
-                item.file_type is BatchRestorationFileType.HTML
+                item.file_type is not BatchRestorationFileType.CSV
                 or any(column.selected for column in item.columns)
                 for item in eligible
             )

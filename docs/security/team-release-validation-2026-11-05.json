@@ -1,0 +1,61 @@
+{
+  "product": "Data Mask Studio Chinese Team Edition",
+  "version": "1.0.0",
+  "date": "2026-11-05",
+  "target": "Windows x64, Windows 10 1809 or later / Windows 11",
+  "upstream_baseline": "1.3.0 / 3dcd11c1ad00db5894db5bab6b686035b8c3bdd0",
+  "build_tools": {
+    "Python": "3.12",
+    "PyInstaller": "6.22.3",
+    "InnoSetup": "6.7.4",
+    "Qt": "6.12.0"
+  },
+  "regression": {
+    "full_passed": 3644,
+    "full_failed": 0,
+    "post_packaging_target_passed": 48
+  },
+  "frozen_probe": {
+    "status": "passed",
+    "pages": 9,
+    "locale": "zh-CN",
+    "catalog_messages": 891,
+    "checks": [
+      "real-main-window",
+      "icon",
+      "local-encrypted-vault",
+      "plain-text",
+      "markdown",
+      "json",
+      "word",
+      "xlsx-import"
+    ]
+  },
+  "installer_lifecycle": {
+    "clean_install": true,
+    "upgrade": true,
+    "uninstall": true,
+    "reinstall": true,
+    "synthetic_data_preserved": true
+  },
+  "dll_fix": "Exclude incompatible third-party ICU and CRT/API-set shims; use the Windows unversioned ICU ABI; restrict dependency origins",
+  "payload_audit": {
+    "user_vaults_or_keys": false,
+    "reports_or_test_data": false,
+    "user_profiles_or_preferences": false,
+    "external_developer_runtime_dlls": false,
+    "bundled_icu_or_windows_crt_shims": false
+  },
+  "source_public_files": 395,
+  "authenticode": "Unsigned application and installer",
+  "new_dependency_vulnerability_scan": false,
+  "other_team_computers_tested": false,
+  "artifacts_sha256": {
+    "DataMaskStudio-Setup-1.0.0.exe": "0148114b8c4397a0af209c57a5560e6709bcd3e1088127cb91c7768577e69a1a",
+    "DataMaskStudio-Source-1.0.0.zip": "f50f053e73c5344fb77d8a6d0a3c332677a7cdba7c5de415f4f1f86068f5e445",
+    "LICENSE.txt": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+    "NOTICE.txt": "39dce4a5440bf646429708f01e8936978e207b7127c931f3b5c66ea4b8f47f1a",
+    "团队使用说明.txt": "e0258bed19207813d10857df07f2d8e528f06f6e90ddd97b8118fa7c8e8ff627",
+    "release-validation.json": "1b428c0464692651c0e3d87398abdce06bb808872f39bc2d6fa2f7763d029ca6"
+  }
+}

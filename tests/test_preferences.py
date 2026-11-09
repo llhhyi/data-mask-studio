@@ -40,7 +40,7 @@ def test_explicit_choice_persists_between_independent_service_instances(tmp_path
     document = json.loads(second.path.read_text(encoding="utf-8"))
     assert document == {"schema_version": 1, "language": language.value}
     assert "effective_language" not in document
-    expected = "pt-BR" if language is LanguagePreference.BRAZILIAN_PORTUGUESE else "en"
+    expected = language.value if language is not LanguagePreference.SYSTEM else "en"
     assert second.resolve_language(loaded.preferences.language) == expected
     if language is LanguagePreference.SYSTEM:
         before = first.path.read_bytes()

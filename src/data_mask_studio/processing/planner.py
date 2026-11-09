@@ -52,6 +52,7 @@ def build_processing_plan(
     inspection: CSVInspectionResult,
     scalar_configs: Sequence[ColumnConfig],
     composites: Sequence[CompositeColumnConfig] = (),
+    *, shared_prefixes: frozenset[str] = frozenset(),
 ) -> ProcessingPlan:
     """Políticas escalares devem corresponder à ordem física da inspeção.
 
@@ -69,7 +70,7 @@ def build_processing_plan(
             raise PlanningError("Nome ou prefixo escalar inválido.")
     # Reutiliza as validações atuais sem mudar a proibição pública de all EXCLUDE.
     if any(config.action is not ColumnAction.EXCLUDE for config in scalar_configs):
-        validation = validate_configuration(scalar_configs)
+        validation = validate_configuration(scalar_configs, shared_prefixes=shared_prefixes)
         if not validation.is_valid:
             raise PlanningError(validation.error_message)
 

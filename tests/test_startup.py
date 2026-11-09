@@ -76,13 +76,14 @@ def test_application_and_main_window_startup(tmp_path: Path) -> None:
     assert window.size().width() == min(1280, available.width())
     assert window.size().height() == min(820, available.height())
     assert window.path_field.isReadOnly()
-    assert window.select_button.text() == "Selecionar CSV"
+    assert window.select_button.text() == "Selecionar CSV / Excel"
     assert window.clear_button.text() == "Limpar seleção"
     assert [button.text() for button in window.navigation.buttons] == [
         "Mascarar arquivo",
         "Mascaramento em lote",
         "Restaurar arquivo",
         "Restauração em lote",
+        "Restaurar texto",
         "Consultar cofre",
         "Backup e recuperação",
         "Cofre e manutenção",

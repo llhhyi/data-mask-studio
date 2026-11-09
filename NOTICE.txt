@@ -1,0 +1,25 @@
+Data Mask Studio Chinese Team Edition 1.0.0
+Release date: 2026-11-05
+
+Based on Data Mask Studio 1.3.0:
+https://github.com/Gustavo-Wallace/data-mask-studio
+Upstream baseline: 3dcd11c1ad00db5894db5bab6b686035b8c3bdd0
+Copyright (C) 2026 Gustavo Wallace Macedo Santos.
+Application license: GPL-3.0-only; see LICENSE.txt.
+
+This is a locally maintained Chinese team fork, not an official upstream release.
+Changes include Chinese localization, XLSX import, cross-table field rules,
+Chinese legacy CSV encoding detection, and Markdown/DOCX/JSON/text restoration.
+Team release numbering starts at 1.0.0 independently of upstream numbering.
+
+The matching modified application source, tests and build instructions are
+provided in DataMaskStudio-Source-1.0.0.zip alongside this installer.
+No user databases, keys, reports, profiles or preferences are distributed.
+
+Third-party runtime components retain their own copyrights and licenses.
+See THIRD_PARTY_NOTICES.txt and licenses/. Qt/PySide and Python libraries are
+dynamically loaded from the application directory; compatible replacements
+may be used for debugging modifications, subject to their respective licenses.
+Source projects: https://code.qt.io/cgit/qt/qtbase.git/
+https://code.qt.io/cgit/pyside/pyside-setup.git/
+https://www.python.org/downloads/source/

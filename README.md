@@ -1,5 +1,22 @@
 English | [Português (Brasil)](README.pt-BR.md)
 
+## 中文团队维护版
+
+本仓库为基于上游 1.3.0 的中文团队维护版，团队版本从 **1.0.0** 独立编号，保留原作者署名及 **GPL-3.0-only** 许可。新增简体中文界面、Excel 导入、跨表字段规则，以及 Markdown / Word / JSON / 文本还原。
+
+[中文使用说明](中文使用说明.md) · [团队安装与分发说明](团队版说明.md) · [代码审查与验证](代码审查-2026-11-05.md) · [安全边界](安全审查.md) · [上游来源与许可声明](NOTICE.txt)
+
+下方保留上游项目说明；其中的下载链接、截图和 1.3.0 版本描述属于原项目发行版。源码安装时使用本仓库：
+
+```powershell
+git clone https://github.com/llhhyi/data-mask-studio.git
+cd data-mask-studio
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install --require-hashes -r requirements-local.lock
+.venv\Scripts\python.exe -m pip install --no-deps -e .
+.venv\Scripts\python.exe -m data_mask_studio
+```
+
 <p align="center">
   <img src="assets/branding/dms_icon.svg" alt="Data Mask Studio icon" width="128">
 </p>

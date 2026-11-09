@@ -1,6 +1,7 @@
 import csv
 import json
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -145,7 +146,8 @@ def test_provenance_failure_precedes_vault_transaction_and_output(tmp_path, monk
         ColumnConfig('column_1', True, 'NAME'), ColumnConfig('CPF', action=Action.EXCLUDE)])
     repo = VaultRepository(tmp_path / 'vault.db', VaultCipher(b'V' * 32))
     def snapshot():
-        with sqlite3.connect(repo.database_path) as db:
+        # sqlite3's transaction context does not close the connection or its WAL handles.
+        with closing(sqlite3.connect(repo.database_path)) as db:
             return tuple(db.iterdump())
     before = snapshot()
     def forbidden_transaction():

@@ -18,9 +18,10 @@ from test_main_navigation import build_window
 
 DESCRIPTIONS = (
     "Defina como cada coluna será tratada no CSV de saída: preservar, mascarar ou excluir.",
-    "Processe vários arquivos CSV com um perfil de configuração salvo.",
-    "Restaure arquivos CSV pelo cofre local ou por pacote de transferência, e HTML pelo cofre local.",
-    "Restaure vários arquivos CSV ou HTML usando o cofre local.",
+    "Processe CSV ou Excel com um perfil estrito ou regras de campos entre tabelas.",
+    "Restaure CSV, Excel, HTML, Markdown, Word ou JSON pelo cofre local; CSV também aceita pacotes de transferência.",
+    "Restaure CSV, Excel, HTML, Markdown, Word ou JSON em lote; códigos ausentes bloqueiam os novos formatos de documento.",
+    "Cole texto de IA, Markdown ou JSON; restaure localmente, revise e copie.",
     "Consulte códigos específicos sem expor todo o conteúdo do cofre.",
     "Crie ou restaure um backup criptografado do ambiente local.",
     "Diagnostique, limpe temporários e compacte o cofre com segurança.",
@@ -34,7 +35,7 @@ def test_all_main_pages_share_header_hierarchy_alignment_and_original_texts(tmp_
     window.show()
     app.processEvents()
     assert window.current_page_index() == 0
-    assert len(window.page_shells) == len(DESCRIPTIONS) == 8
+    assert len(window.page_shells) == len(DESCRIPTIONS) == 9
 
     for index, shell in enumerate(window.page_shells):
         window.set_current_page(index)

@@ -219,7 +219,7 @@ def test_clear_completed_restoration_resets_progress_status_and_output_action(pa
     assert not widget.files and not widget.summary_output.toPlainText()
     assert (widget.overall_progress.minimum(), widget.overall_progress.maximum(),
             widget.overall_progress.value()) == (0, 1, 0)
-    assert widget.status_label.text() == "Adicione arquivos CSV ou HTML para começar."
+    assert widget.status_label.text() == "Adicione arquivos CSV, Excel, HTML, Markdown, Word ou JSON."
     assert widget.status_label.property("feedbackState") == "neutral"
     assert (widget.current_progress.maximum(), widget.current_progress.value()) == (1, 0)
     assert widget.current_progress_label.text() == "Nenhum processamento em andamento."
@@ -262,7 +262,7 @@ def test_clear_and_repeat_restore_initial_feedback_after_each_terminal_state(pag
         finish(page, worker, output, completed=int(outcome == "success"), outcome=outcome)
         widget.clear_files()
         assert widget.overall_progress.value() == 0
-        assert widget.status_label.text() == "Adicione arquivos CSV ou HTML para começar."
+        assert widget.status_label.text() == "Adicione arquivos CSV, Excel, HTML, Markdown, Word ou JSON."
         assert widget.status_label.property("feedbackState") == "neutral"
         assert widget.current_progress.maximum() == 1 and widget.current_progress.value() == 0
         assert_no_output_action(page)

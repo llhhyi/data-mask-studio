@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-04",
+  "upstream_commit": "3dcd11c1ad00db5894db5bab6b686035b8c3bdd0",
+  "runs": [
+    {
+      "scope": "full suite before Excel import",
+      "passed": 3531,
+      "failed": 0
+    },
+    {
+      "scope": "full suite after Excel import",
+      "passed": 3544,
+      "failed": 3,
+      "failure_cause": "Legacy picker assertions expected CSV-only input; updated to CSV/XLSX."
+    },
+    {
+      "scope": "final affected modules, including corrected picker assertions, Excel roundtrip, package password localization, layout, i18n, and integration",
+      "passed": 371,
+      "failed": 0
+    }
+  ],
+  "dependency_audit": {
+    "runtime_packages": 12,
+    "installed_third_party_packages": 50,
+    "reported_known_vulnerabilities": 0,
+    "editable_application": "reviewed as source; excluded from package CVE database"
+  },
+  "versions": {
+    "cryptography": "50.0.2",
+    "PySide6": "6.12.0",
+    "openpyxl": "3.1.5",
+    "defusedxml": "0.7.1",
+    "pip": "26.3",
+    "pytest": "9.2.0"
+  },
+  "provided_workbook_check": {
+    "data_rows": 20,
+    "columns": 8,
+    "all_cells_equal_to_user_utf8_csv": true,
+    "source_sha256_unchanged": true
+  },
+  "real_database_connected": false,
+  "desktop_control": "Stopped by user Escape; no later desktop input or automatic restart."
+}

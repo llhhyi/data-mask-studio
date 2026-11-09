@@ -46,6 +46,11 @@ from data_mask_studio.restoration import (
 )
 from data_mask_studio.security import KeyProviderError
 from data_mask_studio.vault import VaultError, VaultRepository
+from data_mask_studio.narrative_restoration import (
+    NarrativeCancelled, NarrativeError, NarrativeMissingCodes, NarrativeRestorationService,
+)
+
+NARRATIVE_TYPES = {BatchRestorationFileType.MARKDOWN, BatchRestorationFileType.WORD, BatchRestorationFileType.JSON}
 
 RepositoryFactory = Callable[[], VaultRepository]
 FileCallback = Callable[[BatchRestorationFile], None]
@@ -88,7 +93,7 @@ class BatchRestorationService:
                 if file_callback:
                     file_callback(item)
                 raise BatchRestorationStructuralError(item.result_message) from error
-            except (RestorationCancelled, HTMLRestorationCancelled):
+            except (RestorationCancelled, HTMLRestorationCancelled, NarrativeCancelled):
                 item.status = BatchRestorationStatus.CANCELLED
                 item.result_message = "Análise cancelada."
                 item.result_explanation = BatchRestorationExplanation(BatchRestorationReason.ANALYSIS_CANCELLED)
@@ -96,6 +101,11 @@ class BatchRestorationService:
                     file_callback(item)
                 was_cancelled = True
                 break
+            except NarrativeError as error:
+                item.status = BatchRestorationStatus.INCOMPATIBLE
+                item.narrative_error_id = error.message_id
+                item.narrative_error_codes = error.codes
+                item.result_message = error.message_id
             except (CSVInspectionError, RestorationError, HTMLRestorationError) as error:
                 item.status = BatchRestorationStatus.INCOMPATIBLE
                 item.result_message = str(error)
@@ -110,6 +120,9 @@ class BatchRestorationService:
     ) -> None:
         item.result_message = ""
         item.result_explanation = None
+        item.narrative_result = None
+        item.narrative_error_id = None
+        item.narrative_error_codes = ()
         header_warning = ""
         if item.file_type is BatchRestorationFileType.CSV:
             inspection = inspect_csv(item.path)
@@ -144,6 +157,13 @@ class BatchRestorationService:
             item.codes_found = sum(column.valid_codes for column in item.columns)
             item.codes_in_vault = sum(column.found_codes for column in item.columns)
             item.missing_codes = sum(column.missing_codes for column in item.columns)
+        elif item.file_type in NARRATIVE_TYPES:
+            result = NarrativeRestorationService(self._read_only_repository).analyze_file(item.path, should_cancel=should_cancel)
+            item.narrative_result = result
+            item.encoding = "docx" if item.file_type is BatchRestorationFileType.WORD else "Unicode"
+            item.codes_found = result.total_occurrences
+            item.codes_in_vault = result.found_codes
+            item.missing_codes = result.missing_codes
         else:
             inspection = inspect_html(item.path)
             result = HTMLRestorationService(self._read_only_repository).analyze(
@@ -246,7 +266,7 @@ class BatchRestorationService:
                 completed += 1
                 restored += result[0]
                 missing += result[1]
-            except (RestorationCancelled, HTMLRestorationCancelled):
+            except (RestorationCancelled, HTMLRestorationCancelled, NarrativeCancelled):
                 item.status = BatchRestorationStatus.CANCELLED
                 item.result_message = "Restauração cancelada sem publicar saída parcial."
                 item.result_explanation = BatchRestorationExplanation(BatchRestorationReason.CANCELLED_WITHOUT_PARTIAL)
@@ -257,6 +277,18 @@ class BatchRestorationService:
                 if file_callback:
                     file_callback(item)
                 break
+            except NarrativeMissingCodes as error:
+                item.status = BatchRestorationStatus.ERROR
+                item.narrative_error_id = error.message_id
+                item.narrative_error_codes = error.codes
+                item.result_message = error.message_id
+                errors += 1
+                if options.missing_code_policy is not BatchMissingCodePolicy.ABORT_FILE:
+                    _skip_remaining(eligible[position:], file_callback)
+                    skipped += len(eligible[position:])
+                    if file_callback:
+                        file_callback(item)
+                    break
             except (MissingCodeError, HTMLMissingCodeError) as error:
                 item.status = BatchRestorationStatus.ERROR
                 item.result_message = _safe_error(error)
@@ -282,6 +314,12 @@ class BatchRestorationService:
                     file_callback(item)
                 _skip_remaining(eligible[position:], file_callback)
                 raise BatchRestorationStructuralError(item.result_message) from error
+            except NarrativeError as error:
+                item.status = BatchRestorationStatus.ERROR
+                item.narrative_error_id = error.message_id
+                item.narrative_error_codes = error.codes
+                item.result_message = error.message_id
+                errors += 1
             except (RestorationError, HTMLRestorationError, OSError) as error:
                 item.status = BatchRestorationStatus.ERROR
                 item.result_message = _safe_error(error)
@@ -324,6 +362,12 @@ class BatchRestorationService:
         should_cancel: CancellationCheck | None,
     ) -> tuple[int, int]:
         abort = options.missing_code_policy is not BatchMissingCodePolicy.KEEP
+        if item.file_type in NARRATIVE_TYPES:
+            result = NarrativeRestorationService(self._read_only_repository).restore_file(
+                item.path, destination, should_cancel=should_cancel, representation_policy=options.representation_policy,
+            )
+            item.narrative_result = result
+            return result.restored_occurrences, result.missing_codes
         if item.file_type is BatchRestorationFileType.CSV:
             assert item.delimiter is not None
             configuration = RestorationConfiguration(

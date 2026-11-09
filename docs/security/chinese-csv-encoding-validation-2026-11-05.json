@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-05",
+  "issue": "GBK Chinese report headers decoded with Windows-1252 did not match field aliases",
+  "fix": "Try strict GB18030 after UTF-8, before Western fallbacks, only with predominantly Chinese header letters and at least two CJK characters",
+  "new_third_party_dependencies": false,
+  "tests": {
+    "passed": 206,
+    "failed": 0,
+    "duration_seconds": 7.49,
+    "junit": ".pytest-temp/gbk-final-results.xml",
+    "log": ".pytest-temp/gbk-final.log",
+    "scope": "CSV inspection, field rules and GUI, restoration, masking, batch, Chinese workflow, Excel import and publication"
+  },
+  "actual_file_header_readback": {
+    "file_count": 2,
+    "column_counts": [8, 11],
+    "previous_encoding": "windows-1252",
+    "fixed_encoding": "gb18030",
+    "both_files_match_saved_store_and_product_aliases": true,
+    "read_only": true
+  },
+  "real_vault_or_keys_changed": false,
+  "user_rule_file_changed": false,
+  "source_files_changed": false,
+  "actual_business_file_export_performed": false,
+  "automatic_application_restart": false,
+  "full_suite_rerun": false,
+  "known_limit": "BOM-less legacy encodings remain ambiguous; ASCII-only or mixed-language headers may need CSV UTF-8 conversion and manual review"
+}

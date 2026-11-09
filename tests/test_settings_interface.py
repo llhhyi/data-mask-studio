@@ -42,7 +42,7 @@ def test_default_is_stored_system_not_resolved_language_and_opening_never_writes
     assert isinstance(widget.language_combo, ScrollSafeComboBox)
     assert [(widget.language_combo.itemText(i), widget.language_combo.itemData(i))
             for i in range(widget.language_combo.count())] == [
-        ("Automático (Windows)", "system"), ("English", "en"), ("Português (Brasil)", "pt-BR"),
+        ("Automático (Windows)", "system"), ("English", "en"), ("Português (Brasil)", "pt-BR"), ("Chinês simplificado", "zh-CN"),
     ]
     assert widget.language_combo.currentData() == "system"
     assert widget.save_button.isEnabled() and widget.save_button.text() == "Salvar preferência"
@@ -51,8 +51,8 @@ def test_default_is_stored_system_not_resolved_language_and_opening_never_writes
     assert widget.language_combo.accessibleName() == "Idioma do aplicativo"
     assert widget.language_combo.focusPolicy() is Qt.FocusPolicy.StrongFocus
     assert widget.status_label.property("feedbackState") == "neutral"
-    assert "continua em português" in widget.notice_label.text()
-    assert "quando a tradução estiver disponível" in widget.notice_label.text()
+    assert "Reinicie o aplicativo" in widget.notice_label.text()
+    assert "aplicar o idioma selecionado" in widget.notice_label.text()
     assert widget.notice_label.wordWrap()
     assert not service.path.parent.exists()
 
@@ -89,7 +89,7 @@ def test_each_choice_saves_once_and_persists_in_fresh_widgets(language, monkeypa
     QTest.mouseClick(widget.save_button, Qt.MouseButton.LeftButton)
     widget.save_preference()
     assert calls == [language]
-    assert widget.status_label.text() == "Preferência de idioma salva."
+    assert widget.status_label.text() == "Preferência de idioma salva. Reinicie para aplicar."
     assert widget.status_label.property("feedbackState") == "success"
     assert not widget.save_button.isEnabled()
     assert json.loads(service.path.read_text(encoding="utf-8")) == {
@@ -296,8 +296,8 @@ def test_settings_navigation_reload_keyboard_and_portuguese_ui_are_preserved(tmp
     assert service.load().preferences.language is LanguagePreference.ENGLISH
     assert QLocale().name() == locale_before
     assert [shell.header.title_label.text() for shell in window.page_shells] == original_titles
-    assert window.anonymization_widget.select_button.text() == "Selecionar CSV"
-    assert settings.notice_label.isVisible() and "continua em português" in settings.notice_label.text()
+    assert window.anonymization_widget.select_button.text() == "Selecionar CSV / Excel"
+    assert settings.notice_label.isVisible() and "Reinicie o aplicativo" in settings.notice_label.text()
     window.set_current_page(0)
     service.save_language("pt-BR")  # A different instance writes while Settings is closed.
     window.set_current_page(window.page_index(settings))
@@ -383,7 +383,7 @@ widget.show()
 app.processEvents()
 assert widget.language_combo.currentData() == sys.argv[1]
 assert widget.status_label.property('feedbackState') == 'neutral'
-assert 'continua em português' in widget.notice_label.text()
+assert 'Reinicie o aplicativo' in widget.notice_label.text()
 widget.close()
 """
     environment = os.environ.copy()

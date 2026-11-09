@@ -310,10 +310,13 @@ def test_overwrite_pending_with_existing_destination_is_not_destructive(tmp_path
     assert journals(tmp_path) and list(tmp_path.glob("*.tmp"))
 
 
-def test_startup_reports_pending_without_traceback(monkeypatch):
+def test_startup_reports_pending_without_traceback(tmp_path, monkeypatch):
     import data_mask_studio.app as app
+    from data_mask_studio.preferences import PreferencesService
     messages = []
-    monkeypatch.setattr(app, "MainWindow", lambda: (_ for _ in ()).throw(PublicationError("Operação pendente.")))
+    monkeypatch.setattr(app, "PreferencesService", lambda: PreferencesService(
+        tmp_path / "preferences.json", ui_languages_provider=lambda: ("en-US",)))
+    monkeypatch.setattr(app, "MainWindow", lambda **kwargs: (_ for _ in ()).throw(PublicationError("Operação pendente.")))
     monkeypatch.setattr(app.QMessageBox, "warning", lambda parent, title, text: messages.append(text))
     assert app.run() == 1
     assert messages == ["Operação pendente."]

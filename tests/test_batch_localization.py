@@ -374,7 +374,7 @@ def test_file_directory_dialogs_keep_filters_order_duplicates_and_cancel(batch_p
     monkeypatch.setattr(QFileDialog, "getOpenFileNames", lambda *args: calls.append(args) or ([str(paths[1]), str(paths[0]), str(paths[1])], ""))
     widget._choose_files()
     assert [item.path for item in widget.files] == [paths[1], paths[0]]
-    assert calls[0][1] == translator.text("batch.files_title") and calls[0][3] == translator.text("masking.file.filter")
+    assert calls[0][1] == translator.text("batch.files_title") and calls[0][3] == translator.text("input.file_filter")
     assert "*.csv" in calls[0][3]
     folder = tmp_path / "folder"
     folder.mkdir()

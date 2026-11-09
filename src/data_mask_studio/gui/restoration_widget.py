@@ -434,7 +434,7 @@ class RestorationWidget(QWidget):
         try:
             inspection = inspect_csv(file_path)
         except CSVInspectionError as error:
-            self._set_status(str(error), is_error=True)
+            self._set_status(self._translator.text(error.message_id) if error.message_id else str(error), is_error=True)
             return
         self._inspection = inspection
         self._reset_operation_feedback()

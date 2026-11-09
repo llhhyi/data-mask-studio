@@ -113,7 +113,7 @@ def test_initial_labels_headers_and_explicit_main_window_injection(pages, tmp_pa
     window = build_localized_window(root, translator)
     assert window.batch_restoration_widget._translator is translator
     assert window.batch_restoration_widget.output_field.accessibleName() == translator.text("batch_restoration.output_accessible")
-    assert window.page_stack.count() == 8 and window.page_index(window.batch_restoration_widget) == 3
+    assert window.page_stack.count() == 9 and window.page_index(window.batch_restoration_widget) == 3
     window.retranslate(Translator("en" if locale == "pt-BR" else "pt-BR"))
     assert window.batch_restoration_widget._translator is window._translator
 
@@ -158,7 +158,7 @@ def test_files_folder_filters_removal_clear_and_picker_cancellation(pages, monke
     widget.add_files_button.click()
     assert [item.path for item in widget.files] == [paths[0], paths[2]]
     assert calls[-1][1] == Translator(locale).text("batch_restoration.files_title")
-    assert calls[-1][3].endswith("(*.csv *.html *.htm)")
+    assert calls[-1][3].endswith("(*.csv *.xlsx *.html *.htm *.md *.markdown *.docx *.json)")
     assert widget.status_label.text() == Translator(locale).plural("batch.files_added", 2)
     before = tuple(widget.files), widget.status_label.text()
     monkeypatch.setattr(QFileDialog, "getOpenFileNames", lambda *args: ([], ""))

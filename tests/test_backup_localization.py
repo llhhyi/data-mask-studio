@@ -624,7 +624,7 @@ def test_main_window_injects_translator_but_normal_startup_ignores_saved_english
     before = preferences.path.read_bytes()
     window = build_localized_window(tmp_path, preferences_service=preferences)
     assert window.backup_widget.create_button.text() == "Criar backup"
-    assert window.page_stack.count() == 8
+    assert window.page_stack.count() == 9
     window.show()
     widget = window.backup_widget
     window.set_current_page(window.page_index(widget))

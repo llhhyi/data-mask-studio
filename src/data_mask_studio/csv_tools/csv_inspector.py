@@ -2,9 +2,11 @@ import codecs
 import csv
 from io import StringIO
 from pathlib import Path
+import unicodedata
 
 from data_mask_studio.csv_tools.encoding import (
     BOM_ENCODINGS,
+    GB18030,
     LATIN_1,
     UTF_8,
     WINDOWS_1252,
@@ -19,6 +21,10 @@ SUPPORTED_DELIMITERS = ",;\t|"
 
 class CSVInspectionError(Exception):
     """Erro esperado durante a inspeção de um CSV."""
+
+    def __init__(self, message: str, *, message_id: str | None = None):
+        self.message_id = message_id
+        super().__init__(message)
 
 
 def inspect_csv(file_path: str | Path) -> CSVInspectionResult:
@@ -61,6 +67,11 @@ def _read_sample(path: Path) -> bytes:
 
 
 def _detect_encoding(sample: bytes) -> tuple[str, str]:
+    if sample.startswith(b"PK\x03\x04"):
+        raise CSVInspectionError(
+            "This is an Excel/ZIP container, not CSV text. Import it as an Excel workbook.",
+            message_id="xlsx.error.excel_as_csv",
+        )
     sample_is_complete = len(sample) < SAMPLE_SIZE
     for bom, encoding in BOM_ENCODINGS:
         if not sample.startswith(bom):
@@ -81,24 +92,41 @@ def _detect_encoding(sample: bytes) -> tuple[str, str]:
     if b"\x00" in sample:
         raise CSVInspectionError(
             "O arquivo contém bytes NUL e pode ser UTF-16 ou UTF-32 sem BOM, "
-            "formato que não pode ser identificado com segurança."
+            "formato que não pode ser identificado com segurança.",
+            message_id="xlsx.error.nul",
         )
 
     for encoding, display_name in (
         (python_codec(UTF_8), UTF_8),
+        (python_codec(GB18030), GB18030),
         (python_codec(WINDOWS_1252), WINDOWS_1252),
         (python_codec(LATIN_1), LATIN_1),
     ):
         try:
-            return display_name, _decode_sample(
+            decoded = _decode_sample(
                 sample,
                 encoding,
                 final=sample_is_complete,
             )
+            if display_name == GB18030 and not _has_chinese_headers(decoded):
+                continue
+            return display_name, decoded
         except UnicodeDecodeError:
             continue
 
     raise CSVInspectionError("Não foi possível identificar a codificação do arquivo.")
+
+
+def _has_chinese_headers(sample: str) -> bool:
+    # Legacy encodings overlap: require predominantly Chinese header letters
+    # before preferring GB18030 over the existing Western fallbacks.
+    try:
+        header = next(csv.reader(StringIO(sample), delimiter=_detect_delimiter(sample), strict=True))
+    except (CSVInspectionError, csv.Error, StopIteration):
+        return False
+    letters = [char for char in "".join(header) if char.isalpha()]
+    chinese = sum(unicodedata.name(char, "").startswith("CJK UNIFIED IDEOGRAPH-") for char in letters)
+    return chinese >= 2 and chinese * 2 > len(letters)
 
 
 def _decode_sample(sample: bytes, encoding: str, *, final: bool = False) -> str:
@@ -110,6 +138,19 @@ def _detect_delimiter(sample: str) -> str:
     try:
         dialect = csv.Sniffer().sniff(sample, delimiters=SUPPORTED_DELIMITERS)
     except csv.Error as error:
+        # Sniffer splits physical lines, so a valid quoted multi-line cell can
+        # confuse it. Accept only one delimiter with consistent parsed records.
+        candidates = []
+        for delimiter in SUPPORTED_DELIMITERS:
+            try:
+                rows = list(csv.reader(StringIO(sample), delimiter=delimiter, strict=True))
+            except csv.Error:
+                continue
+            widths = {len(row) for row in rows if row}
+            if len(rows) >= 2 and len(widths) == 1 and next(iter(widths)) > 1:
+                candidates.append(delimiter)
+        if len(candidates) == 1:
+            return candidates[0]
         if _is_valid_single_column_sample(sample):
             return ","
         raise CSVInspectionError(

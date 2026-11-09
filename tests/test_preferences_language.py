@@ -120,4 +120,4 @@ def test_native_ui_language_query_smoke():
     languages = detect_system_ui_languages()
     assert isinstance(languages, tuple)
     assert all(isinstance(tag, str) and tag for tag in languages)
-    assert resolve_language(LanguagePreference.SYSTEM, languages) in {"en", "pt-BR"}
+    assert resolve_language(LanguagePreference.SYSTEM, languages) in {"en", "pt-BR", "zh-CN"}

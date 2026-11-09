@@ -60,8 +60,8 @@ def test_build_helper_reads_version_and_generates_versioned_names() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == (
-        "1.3.0|DataMaskStudio-Portable-1.3.0.zip|"
-        "DataMaskStudio-Setup-1.3.0.exe"
+        "1.0.0|DataMaskStudio-Portable-1.0.0.zip|"
+        "DataMaskStudio-Setup-1.0.0.exe"
     )
 
 
@@ -102,7 +102,7 @@ def test_translation_resources_are_collected_for_python_packages_and_pyinstaller
     assert {Path(source).name for source, _ in collected} == {
         f"{locale}.json" for locale in SUPPORTED_LOCALES
     }
-    assert len(collected) == 2
+    assert len(collected) == 3
     assert all(Path(destination).as_posix() == "data_mask_studio/i18n/catalogs"
                for _, destination in collected)
 
@@ -110,10 +110,10 @@ def test_translation_resources_are_collected_for_python_packages_and_pyinstaller
 def test_inno_setup_is_per_user_upgradeable_and_preserves_local_data() -> None:
     script = INNO_FILE.read_text(encoding="utf-8")
 
-    assert "AppId={{D5C24B6C-16B7-4CF5-9D92-5405A6974D43}" in script
-    assert "DefaultDirName={localappdata}\\Programs\\Data Mask Studio" in script
+    assert "AppId={{A99ABF1D-AF79-4F18-9C01-AF80EC65B100}" in script
+    assert "DefaultDirName={localappdata}\\Programs\\Data Mask Studio Team" in script
     assert "PrivilegesRequired=lowest" in script
-    assert "SetupMutex=DataMaskStudio-Setup-Mutex-D5C24B6C" in script
+    assert "SetupMutex=DataMaskStudio-Team-Setup-Mutex-A99ABF1D" in script
     assert "UsePreviousAppDir=yes" in script
     assert "OutputBaseFilename=DataMaskStudio-Setup-{#MyAppVersion}" in script
     assert "VersionInfoVersion={#MyAppVersion}" in script
@@ -127,7 +127,7 @@ def test_inno_setup_is_per_user_upgradeable_and_preserves_local_data() -> None:
     assert "%LOCALAPPDATA%\\DataMaskStudio" in script
 
 
-@pytest.mark.parametrize("filename", ["secret.key", "transfer.dmspackage", "transfer.DMSPACKAGE"])
+@pytest.mark.parametrize("filename", ["secret.key", "transfer.dmspackage", "transfer.DMSPACKAGE", "preferences.json", "field_rules.json", "report.xlsx", "report.docx"])
 def test_build_audit_rejects_sensitive_file_without_exposing_content(
     tmp_path: Path, filename: str,
 ) -> None:
@@ -150,6 +150,18 @@ def test_build_audit_rejects_sensitive_file_without_exposing_content(
     assert filename in visible_output
     assert secret not in visible_output
     assert not destination.exists()
+
+
+def test_team_installer_language_architecture_and_public_notices():
+    script = INNO_FILE.read_text(encoding="utf-8")
+    assert 'MessagesFile: "ChineseSimplified.isl"' in script
+    assert 'ArchitecturesAllowed=x64compatible' in script
+    assert 'LicenseFile={#BuildRoot}\\LICENSE.txt' in script
+    assert 'postinstall skipifsilent unchecked' in script
+    spec = SPEC_FILE.read_text(encoding="utf-8")
+    assert 'copy_metadata("data-mask-studio")' in spec
+    assert (PROJECT_ROOT / "packaging/windows/ChineseSimplified.isl").is_file()
+    assert (PROJECT_ROOT / "团队版说明.md").is_file()
 
 
 def test_build_audit_rejects_editable_install_provenance(tmp_path: Path) -> None:

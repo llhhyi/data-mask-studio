@@ -61,10 +61,10 @@ def test_single_restoration_destination_has_clear_initial_state_and_keyboard_acc
     assert isinstance(unified, FileRestorationWidget)
     assert [button.text() for button in window.navigation.buttons] == [
         "Mascarar arquivo", "Mascaramento em lote", "Restaurar arquivo", "Restauração em lote",
-        "Consultar cofre", "Backup e recuperação", "Cofre e manutenção",
+        "Restaurar texto", "Consultar cofre", "Backup e recuperação", "Cofre e manutenção",
         "Configurações",
     ]
-    assert window.page_stack.count() == 8
+    assert window.page_stack.count() == 9
     assert window.page_index(window.restoration_widget) == window.page_index(window.html_restoration_widget) == 2
     assert unified.stack.currentIndex() == 0 and unified.select_button.isVisible()
     assert not unified.csv_widget.isVisible() and not unified.html_widget.isVisible()
@@ -109,7 +109,7 @@ def test_selector_filters_formats_and_cancel_preserves_valid_selection_and_passw
 
     monkeypatch.setattr(QFileDialog, "getOpenFileName", choose)
     unified.select_button.click()
-    assert "*.csv *.html *.htm" in calls[0][3]
+    assert "*.csv *.xlsx *.html *.htm" in calls[0][3]
     csv = unified.csv_widget
     csv.source_combo.setCurrentIndex(1)
     csv.package_controls.password.setText("transient synthetic password")

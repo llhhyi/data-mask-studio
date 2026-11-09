@@ -211,7 +211,8 @@ def test_saved_language_never_activates_globally_at_normal_startup(tmp_path, pre
 def test_all_literal_gui_ids_plural_forms_placeholders_and_supported_locales_are_valid():
     catalogs = load_catalogs()
     validate_catalogs(catalogs)
-    assert set(catalogs) == {"pt-BR", "en"} and set(catalogs["en"]) == set(catalogs["pt-BR"])
+    assert set(catalogs) == {"pt-BR", "en", "zh-CN"}
+    assert all(set(messages) == set(catalogs["en"]) for messages in catalogs.values())
     prefixes = {identifier.split(".")[0] for identifier in catalogs["en"]}
     checked = set()
     for path in (Path(__file__).resolve().parents[1] / "src/data_mask_studio/gui").rglob("*.py"):
@@ -316,9 +317,9 @@ def test_main_window_mask_then_local_restore_has_identical_outputs_and_decisions
 
 @pytest.mark.parametrize("locale", ["pt-BR", "en"])
 @pytest.mark.parametrize("owner_path,handler,entry_point,caption_id,filter_id,patterns,initial", [
-    ("anonymization_widget", "_select_csv", "getOpenFileName", "masking.file.select_title", "masking.file.filter", ("*.csv",), None),
+    ("anonymization_widget", "_select_csv", "getOpenFileName", "masking.file.select_title", "input.file_filter", ("*.csv *.xlsx", "*.csv", "*.xlsx"), None),
     ("file_restoration_widget", "_select_file", "getOpenFileName", "restoration.file.select", "restoration.file.filter",
-        ("*.csv *.html *.htm", "*.csv", "*.html *.htm"), None),
+        ("*.csv *.xlsx *.html *.htm *.md *.markdown *.docx *.json", "*.csv", "*.xlsx", "*.html *.htm", "*.md *.markdown", "*.docx", "*.json"), None),
     ("restoration_widget.package_controls", "_browse", "getOpenFileName", "restoration.package.select_title", "restoration.package.filter", ("*.dmspackage",), None),
     ("anonymization_widget.transfer_controls", "_browse", "getSaveFileName", "masking.package.save_title", "masking.package.file_filter", ("*.dmspackage",), "destination"),
     ("backup_widget", "choose_restore_file", "getOpenFileName", "backup.select", "backup.file_filter", ("*.dmsbackup",), None),

@@ -79,6 +79,38 @@ def test_csv_windows_1252(tmp_path: Path) -> None:
     assert result.headers == ["descrição", "preço"]
 
 
+@pytest.mark.parametrize("encoding", ["gbk", "gb18030"])
+@pytest.mark.parametrize("delimiter", [",", ";", "\t"])
+def test_chinese_legacy_csv_headers_are_not_read_as_western_text(tmp_path, encoding, delimiter):
+    text = f"日期{delimiter}店名{delimiter}品种{delimiter}金额\r\n2026-11-05{delimiter}合成甲店{delimiter}合成品种{delimiter}0010.50\r\n"
+    path = write_bytes(tmp_path / "中文报表.csv", text.encode(encoding))
+    before = path.read_bytes()
+    result = inspect_csv(path)
+    assert result.encoding == "gb18030"
+    assert result.delimiter == delimiter
+    assert result.headers == ["日期", "店名", "品种", "金额"]
+    assert path.read_bytes() == before
+
+
+def test_gb18030_four_byte_character_and_split_sample_boundary(tmp_path):
+    from data_mask_studio.csv_tools.csv_inspector import SAMPLE_SIZE
+    header = "店名𠀀,品种\n".encode("gb18030")
+    content = header + b"x," + b"x" * (SAMPLE_SIZE - len(header) - 3) + "合成\n".encode("gb18030")
+    path = write_bytes(tmp_path / "sample-boundary.csv", content)
+    result = inspect_csv(path)
+    assert result.encoding == "gb18030"
+    assert result.headers == ["店名𠀀", "品种"]
+
+
+def test_valid_gb18030_byte_pairs_do_not_override_western_headers(tmp_path):
+    text = "ação,ação\nAna,João\n"
+    raw = text.encode("cp1252")
+    raw.decode("gb18030", errors="strict")
+    result = inspect_csv(write_bytes(tmp_path / "western.csv", raw))
+    assert result.encoding == "windows-1252"
+    assert result.headers == ["ação", "ação"]
+
+
 @pytest.mark.parametrize(
     ("encoding", "delimiter"),
     [

@@ -39,6 +39,24 @@ def test_package_gui_password_policy(gui, tmp_path, password, confirmation, vali
             controls.request(*args)
 
 
+def test_chinese_password_hint_and_unchecked_package_do_not_block_csv(gui, tmp_path):
+    from data_mask_studio.i18n import Translator
+    from data_mask_studio.transfer_package.models import PackageError
+    _, widget, _ = gui
+    controls = enable(widget, tmp_path)
+    controls.retranslate(Translator("zh-CN"))
+    controls.password.clear()
+    controls.confirmation.clear()
+    assert controls.password.placeholderText() == "至少 8 个字符"
+    assert "本地加密库" in controls.notice.text()
+    args = (widget._inspection_result.path, tmp_path / "out.csv", True)
+    with pytest.raises(PackageError, match="传输包密码至少需要 8 个字符"):
+        controls.request(*args)
+    controls.checkbox.setChecked(False)
+    assert controls.request(*args) == {}
+    assert controls.notice.isHidden()
+
+
 def enable(widget, tmp_path):
     widget.select_all_columns()
     widget.validate_current_configuration()

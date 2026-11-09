@@ -8,7 +8,7 @@ from string import Formatter
 from types import MappingProxyType
 
 FALLBACK_LOCALE = "en"
-SUPPORTED_LOCALES = (FALLBACK_LOCALE, "pt-BR")
+SUPPORTED_LOCALES = (FALLBACK_LOCALE, "pt-BR", "zh-CN")
 _MESSAGE_ID = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+", re.ASCII)
 _PARAMETER = re.compile(r"[a-z][a-z0-9_]*", re.ASCII)
 

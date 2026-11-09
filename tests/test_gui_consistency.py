@@ -24,7 +24,7 @@ def test_subtitle_and_configuration_dropdowns(tmp_path):
     window = build_window(tmp_path)
     page = window.page_shells[window.page_index(window.restoration_widget)]
     assert page.header.description_label.text() == (
-        "Restaure arquivos CSV pelo cofre local ou por pacote de transferência, e HTML pelo cofre local."
+        "Restaure CSV, Excel, HTML, Markdown, Word ou JSON pelo cofre local; CSV também aceita pacotes de transferência."
     )
     controls = [window.restoration_widget.source_combo,
                 window.restoration_widget.missing_policy_combo,

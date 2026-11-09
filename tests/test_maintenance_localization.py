@@ -356,7 +356,7 @@ def test_explicit_main_window_injection_and_shared_page_header(tmp_path, locale)
     assert widget.refresh_button.text() == translator.text("maintenance.overview.refresh")
     assert shell.header.title_label.text() == translator.text("navigation.maintenance")
     assert shell.header.description_label.text() == translator.text("navigation.description.maintenance")
-    assert window.page_stack.count() == 8
+    assert window.page_stack.count() == 9
 
 
 def test_normal_startup_remains_portuguese_with_saved_english(tmp_path):

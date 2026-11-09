@@ -15,7 +15,7 @@ from typing import Literal
 
 from data_mask_studio.preferences.models import LanguagePreference
 
-EffectiveLanguage = Literal["en", "pt-BR"]
+EffectiveLanguage = Literal["en", "pt-BR", "zh-CN"]
 _UI_TAG = re.compile(r"([a-z]{2,3})(?:[-_]([a-z]{4}))?(?:[-_]([a-z]{2}|[0-9]{3}))?", re.I | re.ASCII)
 _MAX_LANGUAGE_BUFFER = 65536  # Characters; bounded even if a native API misbehaves.
 _MUI_LANGUAGE_NAME = 0x8
@@ -47,8 +47,13 @@ def resolve_language(
         return "en"
     if preference is LanguagePreference.BRAZILIAN_PORTUGUESE:
         return "pt-BR"
+    if preference is LanguagePreference.SIMPLIFIED_CHINESE:
+        return "zh-CN"
     primary = next((tag for tag in ui_languages if isinstance(tag, str) and tag.strip()), "")
-    return "pt-BR" if normalize_ui_language(primary) in {"pt-BR", "pt-Latn-BR"} else "en"
+    normalized = normalize_ui_language(primary)
+    if normalized in {"zh", "zh-CN", "zh-SG", "zh-Hans", "zh-Hans-CN", "zh-Hans-SG"}:
+        return "zh-CN"
+    return "pt-BR" if normalized in {"pt-BR", "pt-Latn-BR"} else "en"
 
 
 def detect_system_ui_languages() -> tuple[str, ...]:

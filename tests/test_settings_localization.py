@@ -33,11 +33,11 @@ def select(widget, language):
 
 @pytest.mark.parametrize("locale, label, options, save, notice", [
     ("pt-BR", "Idioma do aplicativo",
-     ["Automático (Windows)", "English", "Português (Brasil)"], "Salvar preferência",
-     "Nesta etapa, o aplicativo continua em português."),
+     ["Automático (Windows)", "English", "Português (Brasil)", "Chinês simplificado"], "Salvar preferência",
+     "Reinicie o aplicativo após salvar"),
     ("en", "Application language",
-     ["Automatic (Windows)", "English", "Portuguese (Brazil)"], "Save preference",
-     "At this stage, the application remains in Portuguese."),
+     ["Automatic (Windows)", "English", "Portuguese (Brazil)", "Simplified Chinese"], "Save preference",
+     "Restart the application after saving"),
 ])
 def test_all_settings_labels_and_accessibility_use_explicit_locale_without_writes(
     locale, label, options, save, notice,
@@ -50,8 +50,8 @@ def test_all_settings_labels_and_accessibility_use_explicit_locale_without_write
     assert widget.language_combo.accessibleDescription() == Translator(locale).text(
         "settings.language.accessible_description"
     )
-    assert [widget.language_combo.itemText(i) for i in range(3)] == options
-    assert [widget.language_combo.itemData(i) for i in range(3)] == ["system", "en", "pt-BR"]
+    assert [widget.language_combo.itemText(i) for i in range(4)] == options
+    assert [widget.language_combo.itemData(i) for i in range(4)] == ["system", "en", "pt-BR", "zh-CN"]
     assert widget.language_combo.currentData() == "system"
     assert widget.save_button.text() == save
     assert notice in widget.notice_label.text()
@@ -139,7 +139,7 @@ def test_retranslation_preserves_widgets_unsaved_or_saved_state_and_emits_no_sel
         assert state == (widget.language_combo.currentIndex(), widget.language_combo.currentData(),
                          widget.save_button.isEnabled(), widget._acknowledged_language,
                          widget._readable)
-        assert [widget.language_combo.itemData(i) for i in range(3)] == ["system", "en", "pt-BR"]
+        assert [widget.language_combo.itemData(i) for i in range(4)] == ["system", "en", "pt-BR", "zh-CN"]
         assert widget.status_label.property("feedbackState") == (
             "success" if acknowledged else "neutral"
         )

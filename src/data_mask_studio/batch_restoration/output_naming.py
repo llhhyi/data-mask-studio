@@ -12,7 +12,7 @@ def available_output_path(source: Path, output_directory: Path) -> Path:
         if stem.casefold().endswith(suffix):
             stem = stem[: -len(suffix)]
             break
-    extension = ".csv" if source.suffix.casefold() == ".csv" else ".html"
+    extension = source.suffix.casefold() if source.suffix.casefold() in {".csv", ".md", ".markdown", ".docx", ".json"} else ".html"
     base = output_directory / f"{stem}_restaurado{extension}"
     if not base.exists() and not _same_path(source, base):
         return base

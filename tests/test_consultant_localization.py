@@ -424,7 +424,7 @@ def test_main_window_injects_translator_and_relabels_existing_page_only(tmp_path
     window.set_current_page(window.page_index(widget))
     app.processEvents()
     shell = window.page_shells[window.page_index(widget)]
-    assert window.page_stack.count() == 8
+    assert window.page_stack.count() == 9
     assert shell.header.title_label.text() == Translator(locale).text("navigation.browse_vault")
     assert shell.header.description_label.text() == Translator(locale).text("navigation.description.browse_vault")
     assert widget.consult_button.text() == Translator(locale).text("consultant.consult")

@@ -28,9 +28,10 @@ from data_mask_studio.batch.output_naming import reserve_output_file
 from data_mask_studio.batch.reservation import OutputReservation
 from data_mask_studio.batch.validation import planning_explanation, validate_file, validate_output_directory
 from data_mask_studio.csv_tools import CSVInspectionError, ProcessingCancelled, anonymize_csv, inspect_csv
-from data_mask_studio.csv_tools.csv_anonymizer import CSVAnonymizationError
+from data_mask_studio.csv_tools.csv_anonymizer import CSVAnonymizationError, ReviewedSourceChanged
 from data_mask_studio.processing.planner import PlanningError
 from data_mask_studio.profiles import ConfigurationProfile, ProfileService
+from data_mask_studio.field_rules import FieldRuleSet, ConfirmedFieldRules, FieldRuleError
 from data_mask_studio.security import KeyProvider, KeyProviderError
 from data_mask_studio.vault import (
     VaultCollisionError,
@@ -74,6 +75,15 @@ class BatchService:
         file_callback: FileCallback | None = None,
         progress_callback: ProgressCallback | None = None,
     ) -> BatchSummary:
+        if isinstance(profile, FieldRuleSet):
+            raise FieldRuleError("field_rules.error.confirm_first")
+        if isinstance(profile, ConfirmedFieldRules):
+            if (len(files) != len(profile.files)
+                    or {item.path.resolve() for item in files} != {item.path for item in profile.files}
+                    or any(item.status is not BatchFileStatus.COMPATIBLE for item in files)):
+                raise FieldRuleError("field_rules.error.confirm_first")
+        reviewed_sources = ({review.path: review for review in profile.files}
+                            if isinstance(profile, ConfirmedFieldRules) else {})
         compatible = [item for item in files if item.status is BatchFileStatus.COMPATIBLE]
         if not files:
             raise BatchError("Adicione ao menos um arquivo ao lote.")
@@ -98,6 +108,8 @@ class BatchService:
                 item.encoding = inspection.encoding
                 item.delimiter = inspection.delimiter
             except PlanningError as error:
+                if isinstance(error, FieldRuleError):
+                    item.rule_error_id = error.message_id
                 item.status = BatchFileStatus.INCOMPATIBLE
                 item.result_message = str(error)
                 item.result_explanation = planning_explanation(error)
@@ -109,7 +121,11 @@ class BatchService:
                 item.result_explanation = None
                 _notify_file(item, file_callback)
         if not plans:
+            if isinstance(profile, ConfirmedFieldRules):
+                raise FieldRuleError("field_rules.error.changed")
             return _summary(files, 0, Path(output_directory), started_at)
+        if isinstance(profile, ConfirmedFieldRules) and len(plans) != len(files):
+            raise FieldRuleError("field_rules.error.changed")
         compatible = [item for item in compatible if id(item) in plans]
         try:
             output = validate_output_directory(output_directory)
@@ -155,6 +171,9 @@ class BatchService:
                                 _progress(files, item, current_index, len(compatible))
                             )
 
+                    review = reviewed_sources.get(item.path.resolve())
+                    if isinstance(profile, ConfirmedFieldRules) and review is None:
+                        raise FieldRuleError("field_rules.error.changed")
                     result = anonymize_csv(
                         item.path,
                         reservation.path,
@@ -166,6 +185,10 @@ class BatchService:
                         progress_callback=report_records,
                         should_cancel=cancellation.is_requested,
                         vault_repository=vault_repository,
+                        **({"expected_source_fingerprint": {
+                            "sha256": review.sha256,
+                            "size": review.size,
+                        }} if review is not None else {}),
                     )
                 except ProcessingCancelled:
                     _remove_reservation(reservation)
@@ -177,8 +200,10 @@ class BatchService:
                     _mark_remaining_cancelled(compatible[current_index:], file_callback)
                     break
                 except Exception as error:
+                    if isinstance(error, (ReviewedSourceChanged, FieldRuleError)):
+                        item.rule_error_id = error.message_id
                     _remove_reservation(reservation)
-                    structural = _is_structural_error(error)
+                    structural = isinstance(error, (ReviewedSourceChanged, FieldRuleError)) or _is_structural_error(error)
                     item.status = BatchFileStatus.ERROR
                     item.error_type = (
                         BatchErrorType.STRUCTURAL if structural else BatchErrorType.FILE

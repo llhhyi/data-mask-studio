@@ -6,6 +6,7 @@ UTF_16_LE = "utf-16-le"
 UTF_16_BE = "utf-16-be"
 UTF_32_LE = "utf-32-le"
 UTF_32_BE = "utf-32-be"
+GB18030 = "gb18030"
 WINDOWS_1252 = "windows-1252"
 LATIN_1 = "latin-1"
 

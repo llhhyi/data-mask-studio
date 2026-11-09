@@ -69,6 +69,8 @@ from data_mask_studio.gui.components.presentation import (
 )
 from data_mask_studio.gui.visual_tokens import METRICS
 from data_mask_studio.i18n import Translator
+from data_mask_studio.gui.xlsx_import import prepare_tabular_paths
+from data_mask_studio.xlsx_import import WorkbookImportError
 from data_mask_studio.anonymization.column_config import output_header_errors
 from data_mask_studio.normalization import (
     NORMALIZATION_OPTIONS,
@@ -121,6 +123,8 @@ _PROFILE_ERROR_IDS = {
 class AnonymizationWidget(QWidget):
     """Interface da anonimização individual de arquivos CSV."""
 
+    workbooks_imported = Signal(object)
+
     profiles_changed = Signal()
     environment_may_change = Signal()
 
@@ -157,6 +161,7 @@ class AnonymizationWidget(QWidget):
         self.analyze_button.setEnabled(False)
 
         button_layout = QHBoxLayout()
+        self._file_actions_layout = button_layout
         button_layout.addWidget(self.select_button)
         button_layout.addWidget(self.clear_button)
         button_layout.addWidget(self.analyze_button)
@@ -500,6 +505,14 @@ class AnonymizationWidget(QWidget):
             available = min(
                 available, self.parentWidget().width() - margins.left() - margins.right(),
             )
+        actions = self._file_actions_layout
+        actions_width = sum(button.minimumSizeHint().width() for button in (
+            self.select_button, self.clear_button, self.analyze_button,
+        )) + (actions.count() - 1) * actions.spacing()
+        actions.setDirection(
+            QBoxLayout.Direction.LeftToRight if actions_width <= available
+            else QBoxLayout.Direction.TopToBottom
+        )
         metadata.setDirection(
             QBoxLayout.Direction.LeftToRight if natural_width <= available
             else QBoxLayout.Direction.TopToBottom
@@ -541,7 +554,7 @@ class AnonymizationWidget(QWidget):
             self,
             self._translator.text("masking.file.select_title"),
             "",
-            self._translator.text("masking.file.filter"),
+            self._translator.text("input.file_filter"),
         )
         if not file_path:
             self._set_status_id("masking.status.selection_cancelled")
@@ -550,10 +563,22 @@ class AnonymizationWidget(QWidget):
 
     def load_csv(self, file_path: str) -> None:
         """Inspeciona o CSV selecionado e atualiza a interface."""
+        if self.has_running_worker():
+            return
         try:
+            paths = prepare_tabular_paths([file_path], self, self._translator)
+            if not paths:
+                return
+            if len(paths) > 1:
+                self.workbooks_imported.emit(paths)
+                return
+            file_path = str(paths[0])
             result = inspect_csv(file_path)
+        except WorkbookImportError as error:
+            self._show_error(file_path, self._translator.text(error.message_id))
+            return
         except CSVInspectionError as error:
-            self._show_error(file_path, str(error))
+            self._show_error(file_path, self._translator.text(error.message_id) if error.message_id else str(error))
             return
 
         self._show_result(result)
@@ -822,7 +847,11 @@ class AnonymizationWidget(QWidget):
         for row, row_result in enumerate(result.column_results):
             output_field = self._output_name_fields[row]
             output_field.setStyleSheet("border: 1px solid #b42318;" if row in name_errors else "")
-            output_field.setToolTip(name_errors.get(row, ""))
+            output_field.setToolTip(
+                "输出列名重复，请修改。"
+                if row in name_errors and self._translator.locale == "zh-CN"
+                else name_errors.get(row, "")
+            )
             prefix_field = self._prefix_fields[row]
             if row_result.is_valid or row_result.error_message == name_errors.get(row):
                 prefix_field.setStyleSheet("")
@@ -838,7 +867,13 @@ class AnonymizationWidget(QWidget):
         except PlanningError as error:
             self._configuration_validated = False
             self.generate_button.setEnabled(False)
-            self._set_status(str(error), is_error=True)
+            if self._translator.locale == "zh-CN" and not result.is_valid:
+                self._set_status(
+                    "请检查列配置：输出至少保留一列；输出列名不能重复；脱敏前缀须为 2–24 位大写英文字母、数字或下划线，首位为字母，同一文件内不可重复。",
+                    is_error=True,
+                )
+            else:
+                self._set_status(str(error), is_error=True)
         else:
             self._configuration_validated = True
             self.generate_button.setEnabled(True)

@@ -33,7 +33,7 @@ def test_existing_portuguese_gui_and_settings_behavior_are_unchanged(tmp_path, p
     titles = [button.text() for button in window.navigation.buttons]
     assert titles == [
         "Mascarar arquivo", "Mascaramento em lote", "Restaurar arquivo", "Restauração em lote",
-        "Consultar cofre", "Backup e recuperação", "Cofre e manutenção", "Configurações",
+        "Restaurar texto", "Consultar cofre", "Backup e recuperação", "Cofre e manutenção", "Configurações",
     ]
     for locale in ("en", "pt-BR"):
         translator = Translator(locale)
@@ -45,10 +45,9 @@ def test_existing_portuguese_gui_and_settings_behavior_are_unchanged(tmp_path, p
     assert settings.language_combo.currentData() == preference
     assert settings.save_button.text() == "Salvar preferência"
     assert settings.notice_label.text() == (
-        "A preferência será aplicada à interface quando a tradução estiver disponível. "
-        "Nesta etapa, o aplicativo continua em português."
+        "Reinicie o aplicativo após salvar para aplicar o idioma selecionado."
     )
-    assert window.anonymization_widget.select_button.text() == "Selecionar CSV"
+    assert window.anonymization_widget.select_button.text() == "Selecionar CSV / Excel"
     assert [shell.header.title_label.text() for shell in window.page_shells] == titles
     assert QLocale().name() == locale_before
     assert QCoreApplication.translate("QPlatformTheme", "&Yes") == standard_yes == "&Sim"

@@ -27,6 +27,7 @@ _LANGUAGE_MESSAGES = (
     (LanguagePreference.SYSTEM, "settings.language.system"),
     (LanguagePreference.ENGLISH, "settings.language.english"),
     (LanguagePreference.BRAZILIAN_PORTUGUESE, "settings.language.portuguese"),
+    (LanguagePreference.SIMPLIFIED_CHINESE, "settings.language.chinese"),
 )
 
 

@@ -4,6 +4,7 @@ param(
     [switch]$PortableOnly,
     [switch]$Clean,
     [switch]$SkipSmokeTests,
+    [switch]$SmokeTestsOnly,
     [switch]$VerboseOutput
 )
 
@@ -15,6 +16,7 @@ if ($env:OS -ne 'Windows_NT') {
 }
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$env:PYINSTALLER_CONFIG_DIR = Join-Path $projectRoot '.tools\pyinstaller-cache'
 . (Join-Path $PSScriptRoot 'windows_build_helpers.ps1')
 
 function Write-BuildStep([string]$Message) {
@@ -93,20 +95,34 @@ function Test-PortableStartup {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
     $oldLocalAppData = $env:LOCALAPPDATA
     $oldQtPlatform = $env:QT_QPA_PLATFORM
+    $oldSmokeReport = $env:DMS_BUILD_SMOKE_REPORT
+    $process = $null
     try {
         $env:LOCALAPPDATA = $testRoot
         $env:QT_QPA_PLATFORM = 'offscreen'
-        $process = Start-Process -FilePath $Executable -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru
-        Start-Sleep -Seconds 4
-        $running = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
-        if ($null -eq $running) {
-            throw "DataMaskStudio.exe terminou imediatamente durante a validação."
+        $env:DMS_BUILD_SMOKE_REPORT = Join-Path $testRoot 'packaging-smoke.json'
+        $stdoutPath = Join-Path $testRoot 'stdout.log'
+        $stderrPath = Join-Path $testRoot 'stderr.log'
+        $process = Start-Process -FilePath $Executable -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+        $deadline = (Get-Date).AddSeconds(45)
+        while ((Get-Date) -lt $deadline -and -not $process.HasExited -and -not (Test-Path -LiteralPath $env:DMS_BUILD_SMOKE_REPORT)) {
+            Start-Sleep -Milliseconds 200
+            $process.Refresh()
         }
-        Stop-Process -Id $process.Id
-        $process.WaitForExit(5000) | Out-Null
+        if (-not (Test-Path -LiteralPath $env:DMS_BUILD_SMOKE_REPORT)) {
+            $detail = if (Test-Path -LiteralPath $stderrPath) { [IO.File]::ReadAllText($stderrPath) } else { '' }
+            throw "Frozen application did not confirm successful initialization: $detail"
+        }
+        $report = Get-Content -LiteralPath $env:DMS_BUILD_SMOKE_REPORT -Raw -Encoding UTF8 | ConvertFrom-Json
+        Write-Output ($report | ConvertTo-Json -Compress)
+        if ($report.status -ne 'passed') { throw 'Frozen feature probe failed.' }
+        if (-not $process.WaitForExit(10000) -or $process.ExitCode -ne 0) { throw 'Frozen probe did not exit cleanly.' }
     }
     finally {
+        if ($null -ne $process -and -not $process.HasExited) { Stop-Process -Id $process.Id -ErrorAction SilentlyContinue }
         $env:LOCALAPPDATA = $oldLocalAppData
+        if ($null -eq $oldSmokeReport) { Remove-Item Env:DMS_BUILD_SMOKE_REPORT -ErrorAction SilentlyContinue }
+        else { $env:DMS_BUILD_SMOKE_REPORT = $oldSmokeReport }
         if ($null -eq $oldQtPlatform) {
             Remove-Item Env:QT_QPA_PLATFORM -ErrorAction SilentlyContinue
         }
@@ -128,7 +144,7 @@ function Invoke-SilentInstaller {
     )
     $process = Start-Process -FilePath $Installer -ArgumentList @(
         '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-',
-        "/DIR=$InstallDirectory"
+        '/NOICONS', '/TASKS=', ('/DIR="' + $InstallDirectory + '"')
     ) -WindowStyle Hidden -Wait -PassThru
     if ($process.ExitCode -ne 0) {
         throw "O smoke test do instalador falhou com código $($process.ExitCode)."
@@ -156,6 +172,12 @@ function Test-InstallerLifecycle {
     $installedExecutable = Join-Path $installDirectory 'DataMaskStudio.exe'
     $uninstaller = Join-Path $installDirectory 'unins000.exe'
     $oldLocalAppData = $env:LOCALAPPDATA
+    $uninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{A99ABF1D-AF79-4F18-9C01-AF80EC65B100}_is1'
+    foreach ($hive in @('HKCU:', 'HKLM:')) {
+        if (Test-Path -LiteralPath ($hive + '\' + $uninstallKey)) {
+            throw 'Team edition is already installed; refuse to change an existing installation during the build smoke test.'
+        }
+    }
     try {
         New-Item -ItemType Directory -Path $isolatedLocalAppData -Force | Out-Null
         $env:LOCALAPPDATA = $isolatedLocalAppData
@@ -206,8 +228,19 @@ $artifactNames = Get-DataMaskStudioArtifactNames -Version $version
 Write-Host "Versão confirmada pelo pyproject.toml: $version"
 Write-Host "Python: $python"
 
+if ($SmokeTestsOnly) {
+    $portableDirectory = Join-Path $projectRoot 'dist\DataMaskStudio'
+    $installerPath = Join-Path (Join-Path $projectRoot 'release') $artifactNames.Installer
+    Assert-DataMaskStudioBuildIsSafe -Root $portableDirectory
+    Test-PortableStartup -Executable (Join-Path $portableDirectory 'DataMaskStudio.exe')
+    if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) { throw 'Expected installer is missing.' }
+    Test-InstallerLifecycle -Installer $installerPath
+    Write-Output 'PASS: frozen startup, clean install, upgrade, uninstall, reinstall, and isolated data preservation.'
+    return
+}
+
 Write-BuildStep 'Sincronizando metadados locais do projeto'
-& $python -m pip install --no-deps --no-build-isolation -e $projectRoot
+& $python -m pip install --no-deps --no-build-isolation -e $projectRoot --no-index
 if ($LASTEXITCODE -ne 0) {
     throw 'Não foi possível sincronizar os metadados do projeto no ambiente de build.'
 }
@@ -295,6 +328,11 @@ finally {
 if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
     throw "O executável esperado não foi criado: $executable"
 }
+Assert-DataMaskStudioBuildIsSafe -Root $portableDirectory
+
+Write-BuildStep 'Preparing team instructions and license notices'
+& $python (Join-Path $PSScriptRoot 'prepare_team_payload.py') --destination $portableDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Team payload preparation failed.' }
 Assert-DataMaskStudioBuildIsSafe -Root $portableDirectory
 
 if (-not $SkipSmokeTests) {

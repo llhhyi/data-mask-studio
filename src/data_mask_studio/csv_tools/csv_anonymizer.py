@@ -25,7 +25,7 @@ from data_mask_studio.csv_tools.encoding import python_codec
 from data_mask_studio.csv_tools.header_resolver import resolve_empty_headers
 from data_mask_studio.csv_tools.models import CSVInspectionResult
 from data_mask_studio.processing.planner import bind_execution_sources, PlanningError
-from data_mask_studio.publication import Publication, PairPublication, PublicationError, publish
+from data_mask_studio.publication import Publication, PairPublication, PublicationError, publish, fingerprint
 from data_mask_studio.normalization import NormalizationRule
 from data_mask_studio.performance import BALANCED_SETTINGS, PerformanceSettings
 from data_mask_studio.processing.models import BoundCompositeColumn, ProcessingPlan
@@ -44,6 +44,13 @@ class CSVAnonymizationError(RuntimeError):
 
 class ProcessingCancelled(CSVAnonymizationError):
     """Processamento interrompido a pedido do usuário."""
+
+
+class ReviewedSourceChanged(CSVAnonymizationError):
+    message_id = "field_rules.error.changed"
+
+    def __init__(self):
+        super().__init__("Source changed after review; validate and confirm the column list again.")
 
 
 def resolve_anonymization_environment(
@@ -77,6 +84,7 @@ def anonymize_csv(
     processing_plan: ProcessingPlan | None = None,
     transfer_package_request: "PackageStagingRequest | None" = None,
     transfer_package_destination: str | Path | None = None,
+    expected_source_fingerprint: dict | None = None,
 ) -> AnonymizationResult:
     """Stream CSV output; optional package publication is recoverable, not atomic."""
     # Runtime boundary avoids making core result models depend on vault/package
@@ -86,6 +94,13 @@ def anonymize_csv(
 
     source = Path(source_path).expanduser().absolute()
     destination = Path(destination_path).expanduser().absolute()
+    if expected_source_fingerprint is not None:
+        try:
+            unchanged = fingerprint(source) == expected_source_fingerprint
+        except PublicationError:
+            unchanged = False
+        if not unchanged:
+            raise ReviewedSourceChanged()
     # O plano validado é a autoridade; configurações legadas não o sobrescrevem.
     if processing_plan is not None:
         if not processing_plan.requires_masking:
@@ -272,6 +287,13 @@ def anonymize_csv(
                 if should_cancel is not None and should_cancel():
                     raise ProcessingCancelled("A geração do CSV foi cancelada.")
 
+            if expected_source_fingerprint is not None:
+                try:
+                    unchanged = fingerprint(source) == expected_source_fingerprint
+                except PublicationError:
+                    unchanged = False
+                if not unchanged:
+                    raise ReviewedSourceChanged()
             # The file is closed and fsync'ed before the transaction commits.
             if publication is not None and transfer_package_request is None:
                 publication.prepare(temporary_path)

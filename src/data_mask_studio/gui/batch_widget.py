@@ -7,6 +7,7 @@ from data_mask_studio.gui.components.scroll_safe_combo_box import ScrollSafeComb
 
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QDialog,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
@@ -46,6 +47,12 @@ from data_mask_studio.gui.components.presentation import (
 from data_mask_studio.gui.visual_tokens import METRICS
 from data_mask_studio.gui.dialog_localization import localize_standard_buttons
 from data_mask_studio.i18n import Translator
+from data_mask_studio.gui.xlsx_import import prepare_tabular_paths
+from data_mask_studio.xlsx_import import WorkbookImportError
+from data_mask_studio.field_rules import (
+    FieldRuleSet, FieldRuleError, FieldRuleRepository, ConfirmedFieldRules, RuleAwareProfiles,
+)
+from data_mask_studio.gui.field_rules import FieldRuleEditor, FieldRuleReviewDialog
 from data_mask_studio.profiles import (
     ConfigurationProfile,
     ProfileError,
@@ -86,7 +93,11 @@ class BatchWidget(QWidget):
         self._displayed_summary: BatchSummary | None = None
         self._output_confirmation: QMessageBox | None = None
         self._profile_service = profile_service
-        self._service = BatchService(profile_service) if profile_service else None
+        self._service = BatchService(RuleAwareProfiles(profile_service))
+        self._rule_repository = FieldRuleRepository()
+        self._field_rules = FieldRuleSet()
+        self._rule_load_error = None
+        self._confirmed_rules = None
         self._key_provider = key_provider
         self._vault_repository_factory = vault_repository_factory
         self._profiles: list[ConfigurationProfile] = []
@@ -154,11 +165,29 @@ class BatchWidget(QWidget):
         output_row.addWidget(self.choose_output_button)
         configuration = QFormLayout()
         configuration.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self.mode_combo = ScrollSafeComboBox()
+        self.mode_combo.addItem("", "profile")
+        self.mode_combo.addItem("", "field_rules")
+        self.mode_combo.currentIndexChanged.connect(self._mode_changed)
+        self.mode_label = QLabel()
+        self.mode_label.setBuddy(self.mode_combo)
+        configuration.addRow(self.mode_label, self.mode_combo)
         self.profile_label = QLabel()
         self.profile_label.setBuddy(self.profile_combo)
         self.output_label = QLabel()
         self.output_label.setBuddy(self.output_field)
         configuration.addRow(self.profile_label, self.profile_combo)
+        self.rule_controls = QWidget()
+        rule_layout = QHBoxLayout(self.rule_controls)
+        rule_layout.setContentsMargins(0, 0, 0, 0)
+        self.edit_rules_button = QPushButton()
+        self.edit_rules_button.clicked.connect(self.edit_field_rules)
+        self.rules_notice = QLabel()
+        self.rules_notice.setWordWrap(True)
+        rule_layout.addWidget(self.edit_rules_button)
+        rule_layout.addWidget(self.rules_notice, 1)
+        configuration.addRow(self.rule_controls)
+        self.rule_controls.hide()
         configuration.addRow(self.output_label, output_row)
 
         self.validate_button = QPushButton("Validar arquivos")
@@ -174,6 +203,10 @@ class BatchWidget(QWidget):
         self.open_output_button.setEnabled(False)
         processing_actions = QHBoxLayout()
         processing_actions.addWidget(self.validate_button)
+        self.review_rules_button = QPushButton()
+        self.review_rules_button.clicked.connect(self.confirm_field_review)
+        self.review_rules_button.hide()
+        processing_actions.addWidget(self.review_rules_button)
         processing_actions.addWidget(self.start_button)
         processing_actions.addWidget(self.cancel_button)
         processing_actions.addStretch()
@@ -221,6 +254,14 @@ class BatchWidget(QWidget):
     def retranslate(self, translator: Translator) -> None:
         """Presentation only: no profile reload, model reset, gating or worker calls."""
         self._translator = translator
+        self.mode_label.setText(translator.text("field_rules.mode.label"))
+        self.mode_combo.setAccessibleName(translator.text("field_rules.mode.label"))
+        with QSignalBlocker(self.mode_combo):
+            self.mode_combo.setItemText(0, translator.text("field_rules.mode.profile"))
+            self.mode_combo.setItemText(1, translator.text("field_rules.mode.rules"))
+        self.edit_rules_button.setText(translator.text("field_rules.edit"))
+        self.review_rules_button.setText(translator.text("field_rules.review.open"))
+        self.rules_notice.setText(translator.text("field_rules.notice"))
         for widget, message_id in (
             (self.add_files_button, "batch.add_files"),
             (self.add_folder_button, "batch.add_folder"),
@@ -235,6 +276,8 @@ class BatchWidget(QWidget):
             (self.open_output_button, "batch.open_output"),
         ):
             widget.setText(translator.text(message_id))
+        if self.field_rule_mode():
+            self.validate_button.setText(translator.text("field_rules.validate"))
         self.profile_combo.setAccessibleName(translator.text("batch.profile_accessible"))
         self.output_field.setAccessibleName(translator.text("batch.output_accessible"))
         self.output_field.setPlaceholderText(translator.text("batch.output_placeholder"))
@@ -313,6 +356,8 @@ class BatchWidget(QWidget):
             )
 
     def _result_text(self, item: BatchFile) -> str:
+        if item.rule_error_id is not None:
+            return self._translator.text(item.rule_error_id)
         explanation = item.result_explanation
         if explanation is not None:
             presentation = (_RESULT_REASONS.get(explanation.reason)
@@ -395,11 +440,13 @@ class BatchWidget(QWidget):
         if self._validation_worker is not None or self._processing_worker is not None:
             self._profiles_refresh_pending = True
             return
+        if self.field_rule_mode():
+            self._invalidate_field_review()
         self._reload_profiles(preserve_results=False)
 
     def _reload_profiles(self, *, preserve_results: bool) -> None:
         selected = self.profile_combo.currentData()
-        previous_profile = self._selected_profile()
+        previous_profile = self._selected_strict_profile()
         try:
             self._profiles = (
                 self._profile_service.list_profiles()
@@ -417,8 +464,8 @@ class BatchWidget(QWidget):
         if index >= 0:
             self.profile_combo.setCurrentIndex(index)
         self.profile_combo.blockSignals(False)
-        current_profile = self._selected_profile()
-        if self.files and previous_profile is not None and (
+        current_profile = self._selected_strict_profile()
+        if not self.field_rule_mode() and self.files and previous_profile is not None and (
             current_profile is None
             or current_profile.identifier != previous_profile.identifier
             or current_profile.columns != previous_profile.columns
@@ -438,8 +485,16 @@ class BatchWidget(QWidget):
             self._reload_profiles(preserve_results=True)
 
     def add_paths(self, paths: Iterable[str | Path]) -> int:
+        if self._validation_worker is not None or self._processing_worker is not None:
+            return 0
+        try:
+            paths = prepare_tabular_paths(paths, self, self._translator)
+        except WorkbookImportError as error:
+            self._set_status(self._translator.text(error.message_id), is_error=True)
+            return 0
         added = add_files(self.files, paths)
         if added:
+            self._confirmed_rules = None
             self._refresh_table()
             self._set_status_id("batch.files_added", count=added, plural=True)
         self._update_actions()
@@ -447,7 +502,7 @@ class BatchWidget(QWidget):
 
     def _choose_files(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(
-            self, self._translator.text("batch.files_title"), "", self._translator.text("masking.file.filter")
+            self, self._translator.text("batch.files_title"), "", self._translator.text("input.file_filter")
         )
         if paths:
             self.add_paths(paths)
@@ -458,6 +513,7 @@ class BatchWidget(QWidget):
             return
         try:
             paths = discover_csv_files(directory)
+            paths.extend(sorted(Path(directory).glob("*.xlsx")))
         except BatchError as error:
             self._set_status(str(error), is_error=True)
             return
@@ -473,10 +529,13 @@ class BatchWidget(QWidget):
         for row in rows:
             del self.files[row]
         if rows:
+            if self.field_rule_mode():
+                self._invalidate_field_review()
             self._refresh_table()
         self._update_actions()
 
     def clear_files(self) -> None:
+        self._confirmed_rules = None
         self.files.clear()
         self._refresh_table()
         self._clear_summary()
@@ -491,6 +550,8 @@ class BatchWidget(QWidget):
         self._update_actions()
 
     def _profile_changed(self) -> None:
+        if self.field_rule_mode():
+            return
         self._requires_revalidation = True
         if self._validation_worker is not None or self._processing_worker is not None:
             self._profiles_refresh_pending = True
@@ -501,11 +562,77 @@ class BatchWidget(QWidget):
         self._update_actions()
 
     def _selected_profile(self) -> ConfigurationProfile | None:
+        if self.field_rule_mode():
+            return self._field_rules if self._field_rules.rules and self._rule_load_error is None else None
+        return self._selected_strict_profile()
+
+    def _selected_strict_profile(self):
         identifier = self.profile_combo.currentData()
         return next(
             (profile for profile in self._profiles if profile.identifier == identifier),
             None,
         )
+
+    def field_rule_mode(self) -> bool:
+        return self.mode_combo.currentData() == "field_rules"
+
+    def _invalidate_field_review(self):
+        self._confirmed_rules = None
+        self._requires_revalidation = True
+        invalidate_files(self.files)
+        self._refresh_table()
+        self._update_actions()
+
+    def _mode_changed(self):
+        self._invalidate_field_review()
+        rule_mode = self.field_rule_mode()
+        self.profile_label.setVisible(not rule_mode)
+        self.profile_combo.setVisible(not rule_mode)
+        self.rule_controls.setVisible(rule_mode)
+        self.review_rules_button.setVisible(rule_mode)
+        self.validate_button.setText(self._translator.text("field_rules.validate" if rule_mode else "batch.validate"))
+        self._rule_load_error = None
+        if rule_mode:
+            try:
+                self._field_rules = self._rule_repository.load()
+            except FieldRuleError as error:
+                self._rule_load_error = error.message_id
+        self._set_status_id(self._rule_load_error or "field_rules.status.configure" if rule_mode else "batch.status.profile_changed")
+        self._update_actions()
+
+    def edit_field_rules(self):
+        if self._validation_worker is not None or self._processing_worker is not None:
+            return
+        try:
+            dialog = FieldRuleEditor(self._rule_repository, self._profiles, self, self._translator)
+        except FieldRuleError as error:
+            self._set_status_id(error.message_id, is_error=True)
+            return
+        try:
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            self._field_rules = dialog.rules
+            self._rule_load_error = None
+            self._invalidate_field_review()
+            self._set_status_id("field_rules.status.saved")
+            self._update_actions()
+        finally:
+            dialog.deleteLater()
+
+    def confirm_field_review(self):
+        if (not self.field_rule_mode() or self._validation_worker is not None
+                or self._processing_worker is not None or self._requires_revalidation):
+            return
+        dialog = FieldRuleReviewDialog(self.files, self, self._translator)
+        try:
+            if (dialog.exec() == QDialog.DialogCode.Accepted and dialog.confirmation.isChecked()
+                    and self.files and all(item.field_review is not None and item.status is BatchFileStatus.COMPATIBLE
+                                           for item in self.files)):
+                self._confirmed_rules = ConfirmedFieldRules(self._field_rules, tuple(item.field_review for item in self.files))
+                self._set_status_id("field_rules.status.confirmed", state="success")
+                self._update_actions()
+        finally:
+            dialog.deleteLater()
 
     def validate_files(self) -> None:
         if self._validation_worker is not None or self._processing_worker is not None:
@@ -515,11 +642,12 @@ class BatchWidget(QWidget):
             self._set_status_id("batch.error.no_files", is_error=True)
             return
         if profile is None or self._service is None:
-            self._set_status_id("batch.error.no_profile", is_error=True)
+            self._set_status_id("field_rules.error.empty" if self.field_rule_mode() else "batch.error.no_profile", is_error=True)
             return
         # Start a fresh validation generation before the worker visits any file.
         # Unvisited files must not retain results from an earlier batch.
         self._requires_revalidation = True
+        self._confirmed_rules = None
         invalidate_files(self.files)
         self._refresh_table()
         self._clear_summary()
@@ -575,6 +703,18 @@ class BatchWidget(QWidget):
         if self._validation_worker is not None or self._processing_worker is not None:
             return
         profile = self._selected_profile()
+        if self.field_rule_mode():
+            try:
+                if self._rule_repository.load() != self._field_rules:
+                    raise FieldRuleError("field_rules.error.concurrent")
+                if self._confirmed_rules is None or self._confirmed_rules.rules != profile:
+                    raise FieldRuleError("field_rules.error.confirm_first")
+            except FieldRuleError as error:
+                self._invalidate_field_review()
+                self._set_status_id(error.message_id, is_error=True)
+                self._update_actions()
+                return
+            profile = self._confirmed_rules
         if profile is None or self._service is None:
             self._set_status_id("batch.error.no_profile", is_error=True)
             return
@@ -675,11 +815,18 @@ class BatchWidget(QWidget):
         if worker is not None:
             worker.deleteLater()
         self._clear_current_progress()
+        if self.field_rule_mode():
+            self._confirmed_rules = None
+            self._requires_revalidation = True
         self._refresh_pending_profiles()
         self._set_busy(False)
 
     def _worker_failed(self, error: Exception) -> None:
-        if isinstance(error, BatchError):
+        if isinstance(error, FieldRuleError):
+            self._confirmed_rules = None
+            self._requires_revalidation = True
+            self._set_status_id(error.message_id, is_error=True)
+        elif isinstance(error, BatchError):
             self._set_status(str(error), is_error=True)
         else:
             self._set_status_id("batch.error.unexpected", is_error=True)
@@ -692,6 +839,9 @@ class BatchWidget(QWidget):
             self.remove_button,
             self.clear_button,
             self.profile_combo,
+            self.mode_combo,
+            self.edit_rules_button,
+            self.review_rules_button,
             self.output_field,
             self.choose_output_button,
             self.validate_button,
@@ -715,6 +865,8 @@ class BatchWidget(QWidget):
             return
         has_files = bool(self.files)
         has_profile = self._selected_profile() is not None
+        self.review_rules_button.setEnabled(has_files and has_profile and not self._requires_revalidation
+                                           and not any(item.status is BatchFileStatus.PENDING for item in self.files))
         self.remove_button.setEnabled(has_files)
         self.clear_button.setEnabled(has_files)
         self.validate_button.setEnabled(has_files and has_profile)
@@ -725,6 +877,8 @@ class BatchWidget(QWidget):
             and bool(self.output_field.text().strip())
             and not any(item.status is BatchFileStatus.PENDING for item in self.files)
             and any(item.status is BatchFileStatus.COMPATIBLE for item in self.files)
+            and (not self.field_rule_mode() or (self._confirmed_rules is not None
+                 and all(item.status is BatchFileStatus.COMPATIBLE for item in self.files)))
         )
 
     def _refresh_table(self) -> None:

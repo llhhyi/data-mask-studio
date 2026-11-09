@@ -69,7 +69,7 @@ def test_source_alias_remains_rejected(gui, monkeypatch):
     assert source.read_bytes() == original
 
 
-def test_masking_file_selection_remains_csv_only(gui, monkeypatch):
+def test_masking_file_selection_supports_csv_and_excel(gui, monkeypatch):
     _, widget, _ = gui
     dialogs = []
 
@@ -79,4 +79,4 @@ def test_masking_file_selection_remains_csv_only(gui, monkeypatch):
 
     monkeypatch.setattr(QFileDialog, "getOpenFileName", choose)
     widget._select_csv()
-    assert dialogs == [("Selecionar arquivo CSV", "Arquivos CSV (*.csv)")]
+    assert dialogs == [("Selecionar CSV ou Excel", "Arquivos de dados (*.csv *.xlsx);;CSV (*.csv);;Excel (*.xlsx)")]

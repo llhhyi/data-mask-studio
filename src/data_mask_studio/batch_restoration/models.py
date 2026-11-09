@@ -8,6 +8,9 @@ from data_mask_studio.restoration import RepresentationPolicy
 class BatchRestorationFileType(StrEnum):
     CSV = "csv"
     HTML = "html"
+    MARKDOWN = "markdown"
+    WORD = "word"
+    JSON = "json"
 
 
 class BatchRestorationStatus(StrEnum):
@@ -93,6 +96,9 @@ class BatchRestorationFile:
     result_message: str = ""
     output_path: Path | None = None
     result_explanation: BatchRestorationExplanation | None = None
+    narrative_result: object | None = field(default=None, repr=False)
+    narrative_error_id: str | None = None
+    narrative_error_codes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

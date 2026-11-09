@@ -78,10 +78,10 @@ def _form_state(window):
     "owner_path,handler,entry_point,caption,filter_text,initial_field",
     [
         ("anonymization_widget", "_select_csv", "getOpenFileName",
-         "Selecionar arquivo CSV", "Arquivos CSV (*.csv)", None),
+         "Selecionar CSV ou Excel", "Arquivos de dados (*.csv *.xlsx);;CSV (*.csv);;Excel (*.xlsx)", None),
         ("file_restoration_widget", "_select_file", "getOpenFileName",
          "Selecionar arquivo mascarado",
-         "Arquivos compatíveis (*.csv *.html *.htm);;Arquivos CSV (*.csv);;Arquivos HTML (*.html *.htm)",
+         "Arquivos compatíveis (*.csv *.xlsx *.html *.htm *.md *.markdown *.docx *.json);;CSV (*.csv);;Excel (*.xlsx);;HTML (*.html *.htm);;Markdown (*.md *.markdown);;Word (*.docx);;JSON (*.json)",
          None),
         ("restoration_widget.package_controls", "_browse", "getOpenFileName",
          "Selecionar pacote de transferência", "Pacotes (*.dmspackage)", None),

@@ -21,6 +21,7 @@ from data_mask_studio.gui.batch_widget import BatchWidget
 from data_mask_studio.gui.batch_restoration_widget import BatchRestorationWidget
 from data_mask_studio.gui.consultant_widget import ConsultantWidget
 from data_mask_studio.gui.file_restoration_widget import FileRestorationWidget
+from data_mask_studio.gui.narrative_restoration_widget import NarrativeRestorationWidget
 from data_mask_studio.gui.components import (
     NavigationItem,
     PageShell,
@@ -70,8 +71,8 @@ class MainWindow(QMainWindow):
     ) -> None:
         super().__init__()
         self.setWindowTitle("Data Mask Studio")
-        # Localization activation remains explicit until all workflows migrate.
-        # Neither saved preferences nor the Windows UI language selects it yet.
+        # The entry point passes the saved/system locale; standalone widgets
+        # retain the upstream default for callers that supply no translator.
         self._translator = translator or Translator("pt-BR")
         self._initial_screen_fit_pending = True
         self._screen_change_connected = False
@@ -145,6 +146,10 @@ class MainWindow(QMainWindow):
         # child is registered as a standalone navigation destination anymore.
         self.restoration_widget = self.file_restoration_widget.csv_widget
         self.html_restoration_widget = self.file_restoration_widget.html_widget
+        self.document_restoration_widget = self.file_restoration_widget.document_widget
+        self.text_restoration_widget = NarrativeRestorationWidget(
+            self._restoration_repository_factory, translator=self._translator, paste=True,
+        )
         self.batch_restoration_widget = BatchRestorationWidget(
             self._restoration_repository_factory,
             self._prepare_batch_restoration,
@@ -178,11 +183,14 @@ class MainWindow(QMainWindow):
         self.settings_widget = SettingsWidget(
             preferences_service, translator=self._translator,
         )
+        self.anonymization_widget.workbooks_imported.connect(self._import_masking_sheets)
+        self.file_restoration_widget.workbooks_imported.connect(self._import_restoration_sheets)
         page_specs = (
             ("navigation.group.processing", "navigation.mask_file", "navigation.description.mask_file", self.anonymization_widget),
             ("navigation.group.processing", "navigation.batch_masking", "navigation.description.batch_masking", self.batch_widget),
             ("navigation.group.restoration", "navigation.restore_file", "navigation.description.restore_file", self.file_restoration_widget),
             ("navigation.group.restoration", "navigation.batch_restoration", "navigation.description.batch_restoration", self.batch_restoration_widget),
+            ("navigation.group.restoration", "narrative.navigation", "narrative.description", self.text_restoration_widget),
             ("navigation.group.vault", "navigation.browse_vault", "navigation.description.browse_vault", self.consultant_widget),
             ("navigation.group.vault", "navigation.backup", "navigation.description.backup", self.backup_widget),
             ("navigation.group.vault", "navigation.maintenance", "navigation.description.maintenance", self.maintenance_widget),
@@ -226,6 +234,20 @@ class MainWindow(QMainWindow):
         self._configure_presentation()
         self._fit_to_available_geometry()
         self.navigation.buttons[0].setFocus()
+
+    def _import_masking_sheets(self, paths) -> None:
+        # Make the first sheet available for configuring a reusable profile.
+        self.anonymization_widget.load_csv(str(paths[0]))
+        self.batch_widget.add_paths(paths)
+        self.batch_widget._set_status_id(
+            "field_rules.status.sheets_added" if self.batch_widget.field_rule_mode() else "xlsx.batch_ready",
+            count=len(paths),
+        )
+        self.set_current_page(self.page_index(self.batch_widget))
+
+    def _import_restoration_sheets(self, paths) -> None:
+        self.batch_restoration_widget.add_paths(paths)
+        self.set_current_page(self.page_index(self.batch_restoration_widget))
 
     def _available_screen_geometry(self, screen: QScreen | None = None) -> QRect:
         resolved_screen = screen or self.screen() or QGuiApplication.primaryScreen()
@@ -324,6 +346,7 @@ class MainWindow(QMainWindow):
         self.anonymization_widget.retranslate(translator)
         self.batch_widget.retranslate(translator)
         self.file_restoration_widget.retranslate(translator)
+        self.text_restoration_widget.retranslate(translator)
         self.batch_restoration_widget.retranslate(translator)
         self.consultant_widget.retranslate(translator)
         self.backup_widget.retranslate(translator)
@@ -338,7 +361,7 @@ class MainWindow(QMainWindow):
         return self.page_stack.currentIndex()
 
     def page_index(self, widget: QWidget) -> int:
-        if widget in (self.restoration_widget, self.html_restoration_widget):
+        if widget in (self.restoration_widget, self.html_restoration_widget, self.document_restoration_widget):
             widget = self.file_restoration_widget
         return self.page_widgets.index(widget)
 
@@ -381,6 +404,8 @@ class MainWindow(QMainWindow):
             or self.batch_widget.has_running_workers()
             or self.restoration_widget.has_running_worker()
             or self.html_restoration_widget.has_running_worker()
+            or self.document_restoration_widget.has_running_worker()
+            or self.text_restoration_widget.has_running_worker()
             or self.batch_restoration_widget.has_running_workers()
             or self.maintenance_widget.has_running_worker()
         ):
@@ -394,6 +419,8 @@ class MainWindow(QMainWindow):
             or self.batch_widget.has_running_workers()
             or self.restoration_widget.has_running_worker()
             or self.html_restoration_widget.has_running_worker()
+            or self.document_restoration_widget.has_running_worker()
+            or self.text_restoration_widget.has_running_worker()
             or self.backup_widget.has_running_worker()
             or self.maintenance_widget.has_running_worker()
         ):
@@ -407,6 +434,8 @@ class MainWindow(QMainWindow):
             or self.batch_widget.has_running_workers()
             or self.restoration_widget.has_running_worker()
             or self.html_restoration_widget.has_running_worker()
+            or self.document_restoration_widget.has_running_worker()
+            or self.text_restoration_widget.has_running_worker()
             or self.backup_widget.has_running_worker()
             or self.batch_restoration_widget.has_running_workers()
         ):
@@ -435,6 +464,7 @@ class MainWindow(QMainWindow):
             (self.anonymization_widget, "_last_output_path"),
             (self.restoration_widget, "_last_output_path"),
             (self.html_restoration_widget, "_last_output_path"),
+            (self.document_restoration_widget, "_last_output_path"),
             (self.batch_widget, "_output_directory"),
             (self.batch_restoration_widget, "_output_directory"),
             (self.backup_widget, "_last_backup_path"),
@@ -447,15 +477,23 @@ class MainWindow(QMainWindow):
         return tuple(paths)
 
     def _environment_restored(self) -> None:
+        if self.batch_widget.field_rule_mode():
+            self.batch_widget._invalidate_field_review()
         self.anonymization_widget.clear_selection()
         self.anonymization_widget._set_status_id("shell.environment_restored")
         self.consultant_widget.clear_consultation()
         self.anonymization_widget.refresh_profiles()
+        self.text_restoration_widget.clear_selection()
+        self.document_restoration_widget.clear_selection()
         self.maintenance_widget.invalidate_diagnostic()
         self.batch_restoration_widget.invalidate_analysis()
 
     def _environment_maintained(self) -> None:
+        if self.batch_widget.field_rule_mode():
+            self.batch_widget._invalidate_field_review()
         self.consultant_widget.clear_consultation()
+        self.text_restoration_widget.clear_selection()
+        self.document_restoration_widget.clear_selection()
         self.maintenance_widget.invalidate_diagnostic()
         self.batch_restoration_widget.invalidate_analysis()
 
@@ -481,6 +519,8 @@ class MainWindow(QMainWindow):
                 self.html_restoration_widget.stop_worker,
                 "shell.close.html",
             ),
+            (self.document_restoration_widget.stop_worker, "narrative.working"),
+            (self.text_restoration_widget.stop_worker, "narrative.working"),
             (
                 self.batch_restoration_widget.stop_workers,
                 "shell.close.batch_restoration",

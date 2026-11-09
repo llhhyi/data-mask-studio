@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-05",
+  "capabilities": ["Markdown file restoration", "Word DOCX package restoration", "JSON string-value restoration", "Independent paste-and-copy text page", "Mixed-format batch restoration"],
+  "confirmed_policy": {
+    "word_output": "DOCX with editable body, tables, headers, footers, footnotes, endnotes and text boxes; no OCR",
+    "token_match": "Intact uppercase codes only; no guessing or whitespace repair",
+    "unknown_eligible_codes": "Block output and list codes; new document types do not inherit legacy KEEP relaxation",
+    "markdown_exclusions": "Code, link targets and reference identifiers, HTML tags and code regions; report preserved codes",
+    "json": "String values only; keys, types, numeric lexemes and structure preserved",
+    "clipboard": "Explicit paste/copy actions only; separate source and read-only output; no autosave or upload"
+  },
+  "runs": [
+    {"scope": "Initial feature tests", "passed": 36, "failed": 0},
+    {"scope": "Compatibility, navigation, localization, legacy file/batch workflows and then-current feature tests", "passed": 221, "failed": 0, "duration_seconds": 34.17},
+    {"scope": "Full suite before updating remaining legacy UI assertions", "passed": 3613, "failed": 13, "duration_seconds": 316.31, "failure_reason": "Legacy expectations for eight pages, three file panels, old descriptions and CSV/XLSX/HTML-only filters", "log": ".pytest-temp/narrative-full.log", "junit": ".pytest-temp/narrative-full-results.xml"},
+    {"scope": "Affected modules after legacy assertion updates, including new strict batch missing-code test", "passed": 439, "failed": 0, "duration_seconds": 59.35, "log": ".pytest-temp/narrative-final.log", "junit": ".pytest-temp/narrative-final-results.xml"},
+    {"scope": "Final new feature tests (48) and startup suite (12), including visible Word token boundaries", "passed": 60, "failed": 0, "duration_seconds": 4.47, "junit": ".pytest-temp/narrative-last-results.xml"}
+  ],
+  "validated_behaviors": [
+    "Word split formatting runs and all supported stories restore correctly",
+    "Word styles, media, relationships, source document and vault unchanged",
+    "Visible Word breaks, tabs, hyphens and note markers never glue tokens",
+    "Restored Word newlines and tabs use explicit Word elements",
+    "DTD, macros and signatures rejected",
+    "Markdown protected code, URLs, references and HTML preserved and reported",
+    "JSON quotes, backslashes, newlines and Unicode escapes remain valid",
+    "JSON duplicate keys and nonstandard constants rejected",
+    "Unknown code prevents file or clipboard result publication",
+    "Input edits invalidate results and stale worker responses are discarded",
+    "Clipboard remains unchanged until Copy is explicitly clicked",
+    "Mixed CSV, HTML, Markdown, JSON and Word batch exports same-type outputs",
+    "Cancellation and source mutation do not publish results",
+    "Existing destination and source aliases never overwritten"
+  ],
+  "limits": {"file_bytes": 67108864, "text_bytes": 16777216, "word_expanded_bytes": 268435456, "word_xml_bytes": 33554432, "word_entries": 10000},
+  "new_dependencies": false,
+  "pip_check": "No broken requirements found",
+  "third_party_vulnerability_rescan": false,
+  "formal_vault_read_or_changed": false,
+  "business_files_processed": false,
+  "desktop_control_or_automatic_restart": false,
+  "office_visual_render_verified": false,
+  "gui_screenshots": ["docs/images/text-restoration-zh-CN.png", "docs/images/word-restoration-zh-CN.png"],
+  "batch_atomicity": "Per file; previously completed outputs remain if a later file fails"
+}

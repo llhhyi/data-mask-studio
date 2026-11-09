@@ -17,6 +17,7 @@ def create_column_configs(headers: Sequence[str]) -> list[ColumnConfig]:
 
 def validate_configuration(
     configurations: Sequence[ColumnConfig],
+    *, shared_prefixes: frozenset[str] = frozenset(),
 ) -> ConfigurationValidationResult:
     """Valida os nomes finais e os campos usados para mascaramento."""
     remaining = [
@@ -57,7 +58,8 @@ def validate_configuration(
             continue
 
         error_message = validate_prefix(configuration.prefix)
-        if error_message is None and prefix_counts[configuration.prefix] > 1:
+        if (error_message is None and prefix_counts[configuration.prefix] > 1
+                and configuration.prefix not in shared_prefixes):
             error_message = "O prefixo está repetido em outra coluna selecionada."
         error_message = error_message or output_errors.get(index)
 

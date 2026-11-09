@@ -12,6 +12,7 @@ from data_mask_studio.csv_tools import (
 )
 from data_mask_studio.profiles import ConfigurationProfile, ProfileService
 from data_mask_studio.processing.planner import PlanningError
+from data_mask_studio.field_rules import FieldRuleSet, FieldRuleError, review_file
 
 
 def add_files(files: list[BatchFile], paths: Iterable[str | Path]) -> int:
@@ -47,6 +48,8 @@ def discover_csv_files(directory: str | Path) -> list[Path]:
 
 def invalidate_files(files: list[BatchFile]) -> None:
     for item in files:
+        item.field_review = None
+        item.rule_error_id = None
         item.status = BatchFileStatus.PENDING
         item.column_count = None
         item.encoding = None
@@ -69,6 +72,8 @@ def validate_file(
     profile: ConfigurationProfile,
     profile_service: ProfileService,
 ) -> None:
+    item.field_review = None
+    item.rule_error_id = None
     item.status = BatchFileStatus.PENDING
     item.column_count = None
     item.encoding = None
@@ -99,7 +104,11 @@ def validate_file(
     warning = format_header_replacement_warning(inspection.header_replacements)
     try:
         profile_service.build_plan(profile, inspection)
+        if isinstance(profile, FieldRuleSet):
+            item.field_review = review_file(profile, inspection)
     except PlanningError as error:
+        if isinstance(error, FieldRuleError):
+            item.rule_error_id = error.message_id
         item.status = BatchFileStatus.INCOMPATIBLE
         item.result_message = str(error)
         item.result_explanation = planning_explanation(error, detail=warning)

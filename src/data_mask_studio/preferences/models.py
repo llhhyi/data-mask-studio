@@ -8,6 +8,7 @@ class LanguagePreference(StrEnum):
     SYSTEM = "system"
     ENGLISH = "en"
     BRAZILIAN_PORTUGUESE = "pt-BR"
+    SIMPLIFIED_CHINESE = "zh-CN"
 
 
 @dataclass(frozen=True, slots=True)

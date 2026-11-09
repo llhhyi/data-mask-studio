@@ -139,7 +139,7 @@ def test_package_chooser_localizes_description_only_and_cancel_keeps_inputs(app,
 
 
 @pytest.mark.parametrize("locale", ["pt-BR", "en"])
-def test_package_widget_owned_errors_are_localized_but_backend_errors_unchanged(app, tmp_path, locale):
+def test_package_widget_errors_include_localized_password_policy(app, tmp_path, locale):
     widget = enabled_package_controls(tmp_path, Translator(locale))
     source, output = tmp_path / "source.csv", tmp_path / "synthetic_masked.csv"
     with pytest.raises(CSVAnonymizationError) as missing_mask:
@@ -158,8 +158,12 @@ def test_package_widget_owned_errors_are_localized_but_backend_errors_unchanged(
     widget.password.setText("short")
     with pytest.raises(PackageError) as backend_error:
         widget.request(source, output, True)
-    # Free-form service errors have no typed localization contract yet.
-    assert str(backend_error.value) == "A senha do pacote deve possuir pelo menos 8 caracteres."
+    assert str(backend_error.value) == Translator(locale).text(
+        "masking.package.error.password_length", minimum=8)
+    # The GUI translates the policy without weakening the shared crypto guard.
+    from data_mask_studio.transfer_package.service import validate_password
+    with pytest.raises(PackageError):
+        validate_password("short")
 
 
 @pytest.mark.parametrize("locale", ["pt-BR", "en"])

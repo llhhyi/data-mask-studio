@@ -39,7 +39,7 @@ def test_explicit_utf8_resources_lookup_and_named_parameters(locale, label, succ
     warning = translator.text("package.authentication_failed")
     assert ("password" if locale == "en" else "senha") in warning
     catalogs = load_catalogs()
-    assert tuple(catalogs) == SUPPORTED_LOCALES == ("en", "pt-BR")
+    assert tuple(catalogs) == SUPPORTED_LOCALES == ("en", "pt-BR", "zh-CN")
     assert set(catalogs["en"]) == set(catalogs["pt-BR"])
     for identifier in catalogs[locale]:
         assert module.placeholder_names(catalogs[locale][identifier]) == module.placeholder_names(

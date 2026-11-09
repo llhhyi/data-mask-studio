@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-05",
+  "feature": "Explicit cross-table field rules with required per-column confirmation",
+  "runs": [
+    {
+      "scope": "Initial core, GUI, batch, planner, CSV and publication regression",
+      "passed": 211,
+      "failed": 0,
+      "log": ".pytest-temp/field-regression.log"
+    },
+    {
+      "scope": "Full suite before final source-path guard and review presentation adjustment",
+      "passed": 3570,
+      "failed": 1,
+      "duration_seconds": 317.01,
+      "failure": "test_page_headers expected the old batch description; assertion updated to the new CSV/Excel and rules description",
+      "log": ".pytest-temp/field-full.log"
+    },
+    {
+      "scope": "Feature-specific backend and GUI tests, including source identity swapped after preflight",
+      "passed": 24,
+      "failed": 0,
+      "duration_seconds": 2.32
+    },
+    {
+      "scope": "Final affected modules: all 24 feature tests, corrected page assertion, batch, localization, navigation and Excel",
+      "passed": 267,
+      "failed": 0,
+      "duration_seconds": 23.07,
+      "log": ".pytest-temp/field-affected.log",
+      "junit": ".pytest-temp/field-affected-results.xml"
+    }
+  ],
+  "covered_behaviors": [
+    "Different schemas and column aliases share category tokens",
+    "Multiple columns in one file may share one rule category",
+    "Exact-value roundtrip restores original cell strings",
+    "Non-matched columns and column order preserved",
+    "Zero-match files block batch confirmation",
+    "Unchecked or cancelled review does not authorize export",
+    "Post-review value, header, file-list and rule changes rejected",
+    "Mid-processing source mutation rolls back current mappings and output",
+    "Preflight source identity cannot be swapped to omit fingerprint checks",
+    "Existing profile prefix and normalization imported unchanged",
+    "Malformed and concurrently changed rule files preserved",
+    "Legacy strict duplicate-prefix and schema validation preserved",
+    "Language retranslation preserves confirmation; environment changes invalidate it"
+  ],
+  "gui_validation": "Qt offscreen renders of batch mode, rule editor and review dialog; no desktop input",
+  "real_business_data_processed": false,
+  "real_vault_or_keys_changed": false,
+  "third_party_dependencies_added": false,
+  "dependency_vulnerability_rescan": false,
+  "rule_file_in_existing_dmsbackup": false,
+  "batch_atomicity": "Per-file; earlier completed outputs remain on later source change",
+  "automatic_application_restart": false
+}

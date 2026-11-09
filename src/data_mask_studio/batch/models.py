@@ -2,6 +2,10 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from threading import Event
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from data_mask_studio.field_rules import FieldFileReview
 
 from data_mask_studio.anonymization.models import AnonymizationResult, NormalizationFallback
 
@@ -75,6 +79,8 @@ class BatchFile:
     error_type: BatchErrorType | None = None
     processing_result: AnonymizationResult | None = field(default=None, repr=False)
     result_explanation: BatchExplanation | None = None
+    field_review: "FieldFileReview | None" = field(default=None, repr=False)
+    rule_error_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

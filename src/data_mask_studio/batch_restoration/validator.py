@@ -8,7 +8,7 @@ from data_mask_studio.batch_restoration.models import (
     BatchRestorationStatus,
 )
 
-_SUPPORTED_SUFFIXES = {".csv", ".html", ".htm"}
+_SUPPORTED_SUFFIXES = {".csv", ".html", ".htm", ".md", ".markdown", ".docx", ".json"}
 
 
 def add_files(
@@ -22,11 +22,9 @@ def add_files(
         key = _path_key(path)
         if suffix not in _SUPPORTED_SUFFIXES or key in known or not path.is_file():
             continue
-        file_type = (
-            BatchRestorationFileType.CSV
-            if suffix == ".csv"
-            else BatchRestorationFileType.HTML
-        )
+        file_type = {".csv": BatchRestorationFileType.CSV,
+                     ".md": BatchRestorationFileType.MARKDOWN, ".markdown": BatchRestorationFileType.MARKDOWN,
+                     ".docx": BatchRestorationFileType.WORD, ".json": BatchRestorationFileType.JSON}.get(suffix, BatchRestorationFileType.HTML)
         files.append(BatchRestorationFile(path=path, file_type=file_type))
         known.add(key)
         added += 1
@@ -64,6 +62,9 @@ def invalidate_files(files: Iterable[BatchRestorationFile]) -> None:
         item.missing_codes = 0
         item.result_message = ""
         item.result_explanation = None
+        item.narrative_result = None
+        item.narrative_error_id = None
+        item.narrative_error_codes = ()
         item.output_path = None
 
 

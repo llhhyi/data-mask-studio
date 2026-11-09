@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-05",
+  "upstream_baseline": "3dcd11c1ad00db5894db5bab6b686035b8c3bdd0",
+  "review_load": "single-user Windows desktop",
+  "fixed_findings": [
+    {
+      "id": 1,
+      "severity": "P1",
+      "issue": "DOCX default-namespace line breaks produced invalid XML",
+      "paths": [
+        "src/data_mask_studio/narrative_restoration/word.py"
+      ],
+      "status": "fixed"
+    },
+    {
+      "id": 2,
+      "severity": "P2",
+      "issue": "Narrative batch ABORT_FILE policy stopped later files and was blocked in GUI",
+      "paths": [
+        "src/data_mask_studio/batch_restoration/service.py",
+        "src/data_mask_studio/gui/batch_restoration_widget.py"
+      ],
+      "status": "fixed"
+    },
+    {
+      "id": 3,
+      "severity": "P2",
+      "issue": "File action row overflowed narrow windows",
+      "paths": [
+        "src/data_mask_studio/gui/anonymization_widget.py"
+      ],
+      "status": "fixed"
+    }
+  ],
+  "runs": [
+    {
+      "scope": "Full baseline before fixes",
+      "passed": 3624,
+      "failed": 6,
+      "duration_seconds": 338.77
+    },
+    {
+      "scope": "New bug regressions before fixes",
+      "passed": 3,
+      "failed": 4
+    },
+    {
+      "scope": "Restoration service, GUI and batch compatibility after fixes",
+      "passed": 230,
+      "failed": 0,
+      "duration_seconds": 28.04
+    },
+    {
+      "scope": "Responsive layout, Chinese UI and disclosure after fixes",
+      "passed": 57,
+      "failed": 0,
+      "duration_seconds": 15.55
+    },
+    {
+      "scope": "Full suite after fixes",
+      "passed": 3644,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duration_seconds": 365.56,
+      "local_log": ".pytest-temp/review-final.log",
+      "local_junit": ".pytest-temp/review-final-results.xml",
+      "input_manifest_sha256": "b3ddb5277d10290d499eaa8da1dfe221f9caf7d646ae9beb4875afd3d851e2b0"
+    },
+    {
+      "date": "2026-11-09",
+      "scope": "Upload preflight: packaging, startup, version, public docs and narrative restoration",
+      "passed": 102,
+      "failed": 0,
+      "duration_seconds": 10.53,
+      "local_log": ".pytest-temp/upload-20261109.log"
+    }
+  ],
+  "dependency_compatibility": "pip check passed",
+  "new_vulnerability_database_query": false,
+  "not_checked": [
+    "Desktop Word/WPS rendering of complex templates",
+    "Independent penetration testing",
+    "Complete historical supply-chain audit"
+  ],
+  "packaging_note": "Final packaging changes reviewed and covered by the 2026-11-09 targeted regression; final release installer hash matches its 2026-11-05 validation record.",
+  "upload_preflight": {
+    "date": "2026-11-09",
+    "repository": "llhhyi/data-mask-studio",
+    "visibility": "public",
+    "candidate_file_count": 418,
+    "sensitive_file_or_credential_findings": [],
+    "business_source_matches_full_run": true,
+    "new_full_suite_run": false,
+    "installer_lifecycle_rerun": false,
+    "installer_sha256_matches_release_record": true
+  }
+}

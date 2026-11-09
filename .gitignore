@@ -77,3 +77,6 @@ vault.db-shm
 
 .pytest-temp/
 .pytest_cache/
+.runtime/
+.tools/
+/导入转换/

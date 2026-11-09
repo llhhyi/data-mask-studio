@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QLineEdit, QStyle
 from data_mask_studio.gui.components.empty_state_table import EmptyStateTable
 from data_mask_studio.gui.components.presentation import TruncatedTextToolTipDelegate
 from data_mask_studio.i18n import Translator
+from data_mask_studio.gui.visual_tokens import METRICS
 
 PREFIX_PLACEHOLDER = "Disponível ao mascarar"
 
@@ -114,8 +115,8 @@ class ColumnConfigurationTable(EmptyStateTable):
             # O editor já limita o prefixo; largura extra favorece o cabeçalho.
             prefix_limit = (
                 prefix_field.fontMetrics().horizontalAdvance("W" * prefix_field.maxLength())
-                + text_padding
-                + frame_width
+                + max(text_padding, 2 * METRICS["input_padding"])
+                + frame_width + 1  # The cell grid also consumes one pixel.
             )
             prefix_width = min(prefix_width, max(prefix_minimum, prefix_limit))
         header_width = remaining - prefix_width

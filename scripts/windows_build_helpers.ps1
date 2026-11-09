@@ -40,6 +40,10 @@ function Find-InnoSetupCompiler {
     [CmdletBinding()]
     param()
 
+    $projectCompiler = Join-Path $PSScriptRoot '..\.tools\Inno Setup 6\ISCC.exe'
+    if (Test-Path -LiteralPath $projectCompiler -PathType Leaf) {
+        return (Resolve-Path -LiteralPath $projectCompiler).Path
+    }
     $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
     if ($null -ne $command) {
         return $command.Source
@@ -74,7 +78,8 @@ function Assert-DataMaskStudioBuildIsSafe {
     $forbiddenNames = @(
         'secret.key', 'vault_key.dpapi', 'vault.db', 'vault.db-journal',
         'vault.db-wal', 'vault.db-shm', 'profiles.json', '.env',
-        'direct_url.json', 'settings.json', 'config.json', 'local-config.json'
+        'direct_url.json', 'settings.json', 'config.json', 'local-config.json',
+        'preferences.json', 'field_rules.json'
     )
     $forbiddenDirectories = @(
         '.venv', 'venv', '__pycache__', '.pytest_cache', '.mypy_cache',
@@ -82,7 +87,7 @@ function Assert-DataMaskStudioBuildIsSafe {
     )
     $forbiddenExtensions = @(
         '.dmsbackup', '.dmspackage', '.dpapi', '.csv', '.html', '.htm', '.pyc',
-        '.ps1', '.spec', '.iss', '.toml', '.yaml', '.yml'
+        '.ps1', '.spec', '.iss', '.toml', '.yaml', '.yml', '.xlsx', '.docx', '.db', '.sqlite', '.sqlite3'
     )
     $textExtensionsToAudit = @('.txt', '.json', '.pth', '.ini', '.cfg', '.py')
     $findings = [System.Collections.Generic.List[string]]::new()

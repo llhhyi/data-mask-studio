@@ -45,12 +45,12 @@ def build_localized_window(tmp_path, translator=None, preferences_service=None):
 EXPECTED_NAVIGATION = {
     "pt-BR": [
         "Mascarar arquivo", "Mascaramento em lote", "Restaurar arquivo",
-        "Restauração em lote", "Consultar cofre", "Backup e recuperação",
+        "Restauração em lote", "Restaurar texto", "Consultar cofre", "Backup e recuperação",
         "Cofre e manutenção", "Configurações",
     ],
     "en": [
         "Mask file", "Batch masking", "Restore file", "Batch restoration",
-        "Browse vault", "Backup and recovery", "Vault and maintenance", "Settings",
+        "Text restoration", "Browse vault", "Backup and recovery", "Vault and maintenance", "Settings",
     ],
 }
 
@@ -65,7 +65,7 @@ def test_explicit_shell_localization_preserves_routes_and_keyboard(locale, tmp_p
 
     expected = EXPECTED_NAVIGATION[translator.locale]
     assert [button.text() for button in window.navigation.buttons] == expected
-    assert window.page_stack.count() == len(window.page_widgets) == 8
+    assert window.page_stack.count() == len(window.page_widgets) == 9
     assert window.current_page_index() == 0
     assert window.navigation.buttons[0].isChecked()
     assert [category.label.text() for category in window.navigation.categories] == (
@@ -92,9 +92,9 @@ def test_explicit_shell_localization_preserves_routes_and_keyboard(locale, tmp_p
     assert window.navigation.buttons[0].hasFocus()
     QTest.keyClick(window.navigation.buttons[0], Qt.Key.Key_Up)
     app.processEvents()
-    assert window.current_page_index() == 7
+    assert window.current_page_index() == 8
     assert window.page_stack.currentWidget().content is window.settings_widget
-    assert window.navigation.buttons[7].hasFocus()
+    assert window.navigation.buttons[8].hasFocus()
     # Only migrated presentation follows the explicitly injected translator.
     assert window.anonymization_widget.select_button.text() == translator.text("masking.select_csv")
     assert window.maintenance_widget.refresh_button.text() == translator.text("maintenance.overview.refresh")
@@ -165,12 +165,12 @@ def test_in_place_retranslation_preserves_widgets_forms_focus_and_environment(tm
         window.batch_widget._processing_worker, window.batch_widget._validation_worker,
     )
     assert before == after
-    assert window.current_page_index() == 7 and changes == []
+    assert window.current_page_index() == 8 and changes == []
     assert combo.hasFocus() and combo.currentData() == "en"
     assert window.settings_widget.save_button.isEnabled()
     assert window.consultant_widget.codes_input.toPlainText() == "SYNTHETIC-REFERENCE"
     assert not window.navigation.page_enabled(1)
-    assert window.navigation.buttons[7].isChecked()
+    assert window.navigation.buttons[8].isChecked()
     assert window.settings_widget._translator is window.about_dialog._translator is translator
     assert [button.text() for button in window.navigation.buttons] == EXPECTED_NAVIGATION["en"]
     window.retranslate(Translator("pt-BR"))

@@ -12,27 +12,31 @@ from data_mask_studio.gui.dialog_localization import install_dialog_button_trans
 from data_mask_studio.gui.styles import apply_application_theme
 from data_mask_studio.publication import PublicationError
 from data_mask_studio.environment import EnvironmentError
+from data_mask_studio.i18n import Translator
+from data_mask_studio.preferences import PreferencesService
 
 APP_USER_MODEL_ID = "com.gustavowallace.datamaskstudio"
 
 
-def create_application(argv: Sequence[str] | None = None) -> QApplication:
+def create_application(
+    argv: Sequence[str] | None = None, *, translator: Translator | None = None,
+) -> QApplication:
     """Cria e configura a aplicação Qt."""
     _set_windows_app_user_model_id()
     existing_application = QApplication.instance()
     if existing_application is not None:
         application = cast(QApplication, existing_application)
-        _configure_application(application)
+        _configure_application(application, translator=translator)
         return application
 
     application = QApplication(list(argv) if argv is not None else sys.argv)
-    _configure_application(application)
+    _configure_application(application, translator=translator)
     return application
 
 
-def _configure_application(application: QApplication) -> None:
+def _configure_application(application: QApplication, *, translator: Translator | None = None) -> None:
     application.setApplicationName("Data Mask Studio")
-    install_dialog_button_translations(application)
+    install_dialog_button_translations(application, translator=translator)
     apply_application_theme(application)
     icon_path = _application_icon_path()
     if icon_path is not None:
@@ -64,12 +68,22 @@ def _application_icon_path() -> Path | None:
 
 def run() -> int:
     """Inicia a aplicação e executa o loop de eventos."""
-    application = create_application()
+    preferences = PreferencesService()
+    language = preferences.resolve_language(preferences.load().preferences.language)
+    if getattr(sys, "frozen", False) and preferences.path is not None and not preferences.path.exists():
+        language = "zh-CN"
+    translator = Translator(language)
+    application = create_application(translator=translator)
     try:
-        window = MainWindow()
+        window = MainWindow(preferences_service=preferences, translator=translator)
     except (PublicationError, EnvironmentError) as error:
         title = "Ambiente indisponível" if isinstance(error, EnvironmentError) else "Publicação pendente"
-        QMessageBox.warning(None, title, str(error))
+        if translator.locale == "zh-CN":
+            title = "本地环境不可用"
+            detail = "本地加密库存在未完成的操作或无法访问。请保留加密库和原密钥，检查文件权限及待恢复备份。"
+        else:
+            detail = str(error)
+        QMessageBox.warning(None, title, detail)
         return 1
     window.show()
     return application.exec()

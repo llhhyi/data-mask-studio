@@ -98,7 +98,7 @@ def test_html_labels_injection_and_absence_of_package_controls(pages, tmp_path, 
     window = build_localized_window(root, translator)
     assert window.html_restoration_widget._translator is translator
     assert window.html_restoration_widget.path_field.accessibleName() == translator.text("restoration.html.path_accessible")
-    assert window.page_stack.count() == 8 and window.page_index(window.html_restoration_widget) == 2
+    assert window.page_stack.count() == 9 and window.page_index(window.html_restoration_widget) == 2
 
 
 @pytest.mark.parametrize("locale", ["pt-BR", "en"])
@@ -153,7 +153,7 @@ def test_file_dialog_filters_cancel_and_output_alias_guards(pages, monkeypatch, 
     assert calls[-1][1] == Translator(locale).text("restoration.html.select")
     assert calls[-1][3].endswith("(*.html *.htm)")
     page.select_button.click()
-    assert "(*.csv *.html *.htm)" in calls[-1][3] and page.stack.currentWidget() is page.html_widget
+    assert "(*.csv *.xlsx *.html *.htm *.md *.markdown *.docx *.json)" in calls[-1][3] and page.stack.currentWidget() is page.html_widget
     html = page.html_widget
     html.summary.setPlainText("Synthetic completed feedback remains valid on picker cancellation.")
     before = html._inspection, html.summary.toPlainText(), html.status_label.text()

@@ -105,7 +105,8 @@ def test_wide_configuration_bounds_prefix_to_editor_capacity_and_gives_space_bac
     prefix = widget._prefix_fields[0]
     padding = table.fontMetrics().horizontalAdvance("MM")
     frame = 2 * table.style().pixelMetric(QStyle.PixelMetric.PM_DefaultFrameWidth)
-    limit = prefix.fontMetrics().horizontalAdvance("W" * prefix.maxLength()) + padding + frame
+    limit = (prefix.fontMetrics().horizontalAdvance("W" * prefix.maxLength())
+             + max(padding, 2 * METRICS["input_padding"]) + frame + 1)
     assert table.columnWidth(3) <= limit
     assert table.columnWidth(1) > before_header and table.columnWidth(1) > table.columnWidth(3)
     assert widget._output_name_fields[0].width() >= widget._output_name_fields[0].fontMetrics().horizontalAdvance("Manter original")

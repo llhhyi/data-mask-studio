@@ -1,6 +1,6 @@
 """Small preferences store, independent of vault keys, leases and backups.
 
-UTF-8 format v1: {"schema_version": 1, "language": "system"|"en"|"pt-BR"}.
+UTF-8 format v1: {"schema_version": 1, "language": "system"|"en"|"pt-BR"|"zh-CN"}.
 Reads never write defaults. Invalid/unknown documents also block saving, so
 they are not silently repaired or downgraded. Callers receive immutable values
 and safe error codes, never the mutable JSON document or raw IO exceptions.

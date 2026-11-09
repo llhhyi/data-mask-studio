@@ -5,7 +5,7 @@ from PySide6.QtCore import QSignalBlocker
 from PySide6.QtWidgets import QWidget, QCheckBox, QLineEdit, QLabel, QPushButton, QVBoxLayout, QFormLayout, QHBoxLayout, QFileDialog
 
 from data_mask_studio.csv_tools.csv_anonymizer import validate_transfer_package_destination, CSVAnonymizationError
-from data_mask_studio.transfer_package.service import validate_password
+from data_mask_studio.transfer_package.service import MIN_PASSWORD_LENGTH, validate_password
 from data_mask_studio.transfer_package.models import PackageError
 from data_mask_studio.transfer_package.staging import PackageStagingRequest
 from data_mask_studio.i18n import Translator
@@ -19,6 +19,8 @@ class TransferPackageControls(QWidget):
         self._manual_destination = False
         self.checkbox = QCheckBox(self)
         self.checkbox.setEnabled(False)
+        self.notice = QLabel(self)
+        self.notice.setWordWrap(True)
         self.fields = QWidget(self)
         self.destination = QLineEdit(self)
         self.browse_button = QPushButton(self)
@@ -44,6 +46,7 @@ class TransferPackageControls(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.checkbox)
+        layout.addWidget(self.notice)
         layout.addWidget(self.fields)
         self.checkbox.toggled.connect(self._toggled)
         self.browse_button.clicked.connect(self._browse)
@@ -54,6 +57,10 @@ class TransferPackageControls(QWidget):
     def retranslate(self, translator: Translator) -> None:
         """Translate presentation only, retaining transient execution inputs."""
         self._translator = translator
+        self.notice.setText(translator.text("masking.package.hint"))
+        hint = translator.text("masking.package.password_hint", minimum=MIN_PASSWORD_LENGTH)
+        self.password.setPlaceholderText(hint)
+        self.confirmation.setPlaceholderText(hint)
         for widget, message_id in (
             (self.checkbox, "masking.package.enabled"),
             (self.browse_button, "masking.package.browse"),
@@ -71,6 +78,7 @@ class TransferPackageControls(QWidget):
             field.setAccessibleName(translator.text(message_id))
 
     def _toggled(self, checked):
+        self.notice.setVisible(checked)
         self.fields.setEnabled(checked)
         self.fields.setVisible(checked)
         if not checked:
@@ -130,7 +138,12 @@ class TransferPackageControls(QWidget):
             raise CSVAnonymizationError(self._translator.text("masking.package.error.requires_masking"))
         self.set_output_path(output)
         destination = validate_transfer_package_destination(source, output, self.destination.text())
-        validate_password(self.password.text())
+        try:
+            validate_password(self.password.text())
+        except PackageError:
+            raise PackageError(self._translator.text(
+                "masking.package.error.password_length", minimum=MIN_PASSWORD_LENGTH,
+            )) from None
         if self.password.text() != self.confirmation.text():
             raise PackageError(self._translator.text("masking.package.error.confirmation"))
         return dict(transfer_package_request=PackageStagingRequest(self.password.text()),

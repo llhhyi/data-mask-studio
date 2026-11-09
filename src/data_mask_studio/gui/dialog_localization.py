@@ -30,7 +30,6 @@ _STANDARD_BUTTON_MESSAGE_IDS = (
 class _DialogButtonTranslator(QTranslator):
     def __init__(self, parent: QObject | None = None, *, translator: Translator | None = None) -> None:
         super().__init__(parent)
-        # Normal startup remains Portuguese, independent of stored preferences.
         self._translator = translator if translator is not None else Translator("pt-BR")
 
     def isEmpty(self) -> bool:
@@ -61,10 +60,12 @@ def localize_standard_buttons(dialog: QMessageBox | QDialogButtonBox, translator
             button.setText(translator.text(message_id))
 
 
-def install_dialog_button_translations(application: QApplication) -> None:
+def install_dialog_button_translations(
+    application: QApplication, *, translator: Translator | None = None,
+) -> None:
     """Instala uma única vez, antes dos widgets, sem traduzir o restante do Qt."""
     if application.findChild(_DialogButtonTranslator) is not None:
         return
     # O parent mantém o tradutor vivo durante toda a vida da QApplication.
-    translator = _DialogButtonTranslator(application)
-    application.installTranslator(translator)
+    button_translator = _DialogButtonTranslator(application, translator=translator)
+    application.installTranslator(button_translator)

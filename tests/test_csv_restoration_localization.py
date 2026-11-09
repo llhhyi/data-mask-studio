@@ -67,7 +67,7 @@ def load_csv(page, case, *, package=False, indexes=(0, 1)):
 def test_shared_shell_injection_navigation_and_csv_labels(pages, tmp_path, locale):
     app, page, case = pages(locale)
     translator = Translator(locale)
-    assert page.stack.count() == 3 and page.stack.currentIndex() == 0
+    assert page.stack.count() == 4 and page.stack.currentIndex() == 0
     assert page.select_button.text() == translator.text("restoration.file.select")
     assert page.guidance.text() == translator.text("restoration.file.guidance")
     assert page.format_label.text() == translator.text("restoration.file.formats")
@@ -94,7 +94,7 @@ def test_shared_shell_injection_navigation_and_csv_labels(pages, tmp_path, local
     root = tmp_path / "window"
     root.mkdir()
     window = build_localized_window(root, translator)
-    assert len(window.page_widgets) == window.page_stack.count() == 8
+    assert len(window.page_widgets) == window.page_stack.count() == 9
     assert window.file_restoration_widget._translator is translator
     assert window.restoration_widget._translator is window.restoration_widget.package_controls._translator is translator
     assert window.page_index(window.restoration_widget) == window.page_index(window.html_restoration_widget) == 2
@@ -119,7 +119,8 @@ def test_localized_file_dialogs_preserve_filters_selection_and_cancel(pages, tmp
     page.select_button.click()
     assert calls[-1][1] == translator.text("restoration.file.select")
     assert [part[part.index("("):] for part in calls[-1][3].split(";;")] == [
-        "(*.csv *.html *.htm)", "(*.csv)", "(*.html *.htm)"]
+        "(*.csv *.xlsx *.html *.htm *.md *.markdown *.docx *.json)", "(*.csv)", "(*.xlsx)", "(*.html *.htm)",
+        "(*.md *.markdown)", "(*.docx)", "(*.json)"]
     csv = page.csv_widget
     csv.select_all_columns()
     csv.source_combo.setCurrentIndex(1)
